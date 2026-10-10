@@ -1,0 +1,2470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Marklet — Bookmark Manager</title>
+<style>
+:root{
+  --bg:#0a0c11; --surface:#131720; --surface-2:#181d28; --surface-3:#1f2534;
+  --border:#242b3a; --border-soft:#1b202c;
+  --text:#e9edf6; --text-2:#98a2b8; --text-3:#69738c;
+  --accent:#6d8cff; --accent-soft:rgba(109,140,255,.14);
+  --danger:#ff5f70; --danger-soft:rgba(255,95,112,.14);
+  --ok:#3ddc97; --warn:#ffb84d;
+  --radius:16px; --radius-sm:10px;
+  --shadow-1:0 2px 8px rgba(0,0,0,.28);
+  --shadow-2:0 12px 34px rgba(0,0,0,.42);
+  --sidebar-w:250px; --grid-min:280px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;font-family:var(--font);font-size:14px;line-height:1.5;color:var(--text);
+  background:
+    radial-gradient(1100px 620px at 12% -8%,rgba(109,140,255,.10),transparent 62%),
+    radial-gradient(900px 560px at 100% 0%,rgba(160,107,255,.09),transparent 58%),
+    #0a0c11;
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;overflow:hidden;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+h1,h2,h3,h4,p{margin:0}
+::selection{background:var(--accent);color:#fff}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-thumb{background:#232a3a;border-radius:20px;border:2px solid transparent;background-clip:content-box}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* Layout */
+.app{display:flex;height:100dvh;overflow:hidden}
+.sidebar{
+  width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+  background:linear-gradient(180deg,rgba(19,23,32,.96),rgba(15,18,26,.96));
+  border-right:1px solid var(--border-soft);display:flex;flex-direction:column;height:100dvh;z-index:60;
+  transition:transform .28s var(--ease);
+}
+.sb-head{display:flex;align-items:center;justify-content:space-between;padding:18px 16px 12px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-mark{width:34px;height:34px;border-radius:11px;flex:0 0 34px;
+  background:linear-gradient(135deg,var(--accent),#a06bff);
+  display:grid;place-items:center;font-weight:800;font-size:16px;color:#fff;
+  box-shadow:0 6px 18px rgba(109,140,255,.35)}
+.brand-text{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.brand-text strong{font-size:15px}
+.brand-text span{font-size:11px;color:var(--text-3)}
+.sb-scroll{flex:1;overflow-y:auto;padding:0 10px 10px;overscroll-behavior:contain}
+.nav{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+.nav-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 11px;border-radius:var(--radius-sm);
+  color:var(--text-2);font-size:13.5px;font-weight:500;text-align:left;transition:background .16s var(--ease),color .16s var(--ease)}
+.nav-item:hover{background:var(--surface-2);color:var(--text)}
+.nav-item.is-active{background:var(--accent-soft);color:var(--text);box-shadow:inset 0 0 0 1px rgba(109,140,255,.22)}
+.nav-item .ni-icon{font-size:15px;width:19px;text-align:center;flex:0 0 19px}
+.nav-item .ni-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item .ni-count{font-size:11px;color:var(--text-3);background:var(--surface-3);
+  padding:1px 7px;border-radius:20px;font-variant-numeric:tabular-nums}
+.nav-item.is-active .ni-count{background:rgba(109,140,255,.2);color:var(--text)}
+.side-section{margin-bottom:16px}
+.side-head{display:flex;align-items:center;justify-content:space-between;padding:6px 11px;
+  font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3)}
+.mini-btn{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;color:var(--text-3);font-size:14px;line-height:1}
+.mini-btn:hover{background:var(--surface-3);color:var(--text)}
+.cat-list{display:flex;flex-direction:column;gap:1px}
+.cat-item{display:flex;align-items:center;gap:9px;width:100%;padding:7px 11px;border-radius:8px;
+  font-size:13px;color:var(--text-2);text-align:left;transition:.15s var(--ease)}
+.cat-item:hover{background:var(--surface-2);color:var(--text)}
+.cat-item.is-active{background:var(--surface-3);color:var(--text)}
+.cat-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px;box-shadow:0 0 8px currentColor}
+.cat-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-count{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:6px;padding:2px 11px 0}
+.tag-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
+  font-size:11.5px;font-weight:500;background:var(--surface-2);color:var(--text-2);
+  border:1px solid var(--border-soft);transition:.15s var(--ease);max-width:100%}
+.tag-pill:hover{background:var(--surface-3);color:var(--text);border-color:var(--border)}
+.tag-pill.is-active{background:var(--accent-soft);color:var(--text);border-color:rgba(109,140,255,.4)}
+.tag-pill b{font-weight:600;opacity:.65;font-size:10px}
+.sb-foot{border-top:1px solid var(--border-soft);padding:8px 10px 12px;display:flex;flex-direction:column;gap:2px}
+.sb-foot button{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;
+  color:var(--text-2);font-size:13px;text-align:left;transition:.15s var(--ease)}
+.sb-foot button:hover{background:var(--surface-2);color:var(--text)}
+
+/* Main */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:10px;padding:12px 18px;
+  border-bottom:1px solid var(--border-soft);background:rgba(11,14,20,.72);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);flex-wrap:wrap;z-index:30}
+.icon-btn{width:36px;height:36px;flex:0 0 36px;border-radius:10px;display:grid;place-items:center;
+  color:var(--text-2);font-size:15px;border:1px solid transparent;transition:.15s var(--ease)}
+.icon-btn:hover{background:var(--surface-2);color:var(--text);border-color:var(--border-soft)}
+.search-wrap{flex:1 1 260px;min-width:180px;position:relative;display:flex;align-items:center}
+.search-icon{position:absolute;left:12px;font-size:13px;opacity:.5;pointer-events:none}
+#searchInput{width:100%;height:40px;padding:0 38px 0 34px;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:12px;color:var(--text);font-size:13.5px;
+  -webkit-appearance:none;appearance:none;transition:.18s var(--ease)}
+#searchInput::placeholder{color:var(--text-3)}
+#searchInput:focus{outline:none;border-color:rgba(109,140,255,.55);background:var(--surface-2);
+  box-shadow:0 0 0 4px rgba(109,140,255,.10)}
+#searchInput::-webkit-search-cancel-button{display:none}
+.clear-btn{position:absolute;right:8px;width:24px;height:24px;border-radius:7px;
+  display:grid;place-items:center;color:var(--text-3);font-size:12px}
+.clear-btn:hover{background:var(--surface-3);color:var(--text)}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{height:40px;padding:0 14px;border-radius:12px;display:inline-flex;align-items:center;gap:7px;
+  background:var(--surface);border:1px solid var(--border-soft);color:var(--text-2);
+  font-size:13px;font-weight:550;transition:.16s var(--ease);white-space:nowrap}
+.btn:hover{background:var(--surface-2);color:var(--text);border-color:var(--border)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),#8a6bff);color:#fff;border-color:transparent;
+  box-shadow:0 6px 18px rgba(109,140,255,.28)}
+.btn.primary:hover{filter:brightness(1.08);color:#fff}
+.btn.danger{color:var(--danger);border-color:rgba(255,95,112,.28);background:var(--danger-soft)}
+.btn.danger:hover{background:rgba(255,95,112,.2);color:#ff8b98}
+.btn.sm{height:32px;padding:0 11px;font-size:12.5px;border-radius:9px}
+.btn.is-active{background:var(--accent-soft);border-color:rgba(109,140,255,.42);color:var(--text)}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.select{height:40px;padding:0 30px 0 12px;border-radius:12px;background:var(--surface);color:var(--text-2);
+  border:1px solid var(--border-soft);font-size:13px;-webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398a2b8' stroke-width='2.4' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center;transition:.16s var(--ease)}
+.select:hover{background-color:var(--surface-2);color:var(--text)}
+.select:focus{outline:none;border-color:rgba(109,140,255,.5)}
+.view-toggle{display:flex;background:var(--surface);border:1px solid var(--border-soft);border-radius:12px;padding:3px;height:40px}
+.view-toggle button{width:34px;border-radius:9px;display:grid;place-items:center;color:var(--text-3);font-size:14px;transition:.15s var(--ease)}
+.view-toggle button:hover{color:var(--text)}
+.view-toggle button.is-active{background:var(--surface-3);color:var(--text);box-shadow:var(--shadow-1)}
+
+/* Stats */
+.stats{display:flex;gap:8px;padding:12px 18px 2px;overflow-x:auto;scrollbar-width:none}
+.stats::-webkit-scrollbar{display:none}
+.stat{display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:11px;
+  background:var(--surface);border:1px solid var(--border-soft);white-space:nowrap;flex:0 0 auto;transition:.15s var(--ease)}
+.stat:hover{border-color:var(--border);background:var(--surface-2)}
+.stat .s-val{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .s-lab{font-size:11.5px;color:var(--text-3)}
+
+/* Chips row */
+.chips-row{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;
+  background:var(--surface-2);border:1px solid var(--border-soft);font-size:12px;color:var(--text-2)}
+.chip button{color:var(--text-3);font-size:12px;line-height:1}
+.chip button:hover{color:var(--danger)}
+.chip.accent{background:var(--accent-soft);border-color:rgba(109,140,255,.36);color:var(--text)}
+
+/* Content */
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 18px 90px}
+.content-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.result-count{font-size:12.5px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.result-count b{color:var(--text-2);font-weight:600}
+.bookmark-container{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(var(--grid-min),1fr))}
+.bookmark-container.list-view{grid-template-columns:1fr;gap:7px}
+
+/* Card */
+.card{position:relative;background:var(--surface);border:1px solid var(--border-soft);
+  border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:9px;
+  transition:transform .18s var(--ease),border-color .18s var(--ease),box-shadow .18s var(--ease),background .18s var(--ease);
+  animation:cardIn .26s var(--ease) both;contain:content}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card:hover{border-color:var(--border);background:var(--surface-2);box-shadow:var(--shadow-2);transform:translateY(-2px)}
+.card.is-selected{border-color:rgba(109,140,255,.6);box-shadow:0 0 0 1px rgba(109,140,255,.35),var(--shadow-2)}
+.card.is-archived{opacity:.72}
+.card-top{display:flex;gap:11px;align-items:flex-start}
+.favicon{width:38px;height:38px;flex:0 0 38px;border-radius:11px;overflow:hidden;background:var(--surface-3);
+  display:grid;place-items:center;border:1px solid var(--border-soft);position:relative}
+.favicon img{width:22px;height:22px;object-fit:contain;display:block}
+.favicon .letter{font-weight:800;font-size:15px;color:#fff;width:100%;height:100%;display:grid;place-items:center}
+.card-headings{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.card-title{font-size:14px;font-weight:650;line-height:1.32;color:var(--text);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.card-domain{font-size:11.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-domain:hover{color:var(--accent);text-decoration:underline}
+.star-btn{font-size:15px;line-height:1;color:var(--text-3);padding:4px;border-radius:8px;transition:.15s var(--ease)}
+.star-btn:hover{background:var(--surface-3);transform:scale(1.12)}
+.star-btn.on{color:#ffc84d}
+.card-desc{font-size:12.6px;line-height:1.55;color:var(--text-2);
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.card-tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag-chip{font-size:11px;padding:2.5px 8px;border-radius:20px;
+  background:rgba(109,140,255,.11);color:#a9bcff;border:1px solid rgba(109,140,255,.18);
+  max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag-chip.more{background:var(--surface-3);color:var(--text-3);border-color:transparent}
+.card-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:3px}
+.cat-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  padding:3px 9px;border-radius:20px;border:1px solid transparent;white-space:nowrap}
+.meta-txt{font-size:11px;color:var(--text-3);white-space:nowrap}
+.badge-read{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;
+  background:rgba(61,220,151,.13);color:var(--ok);border:1px solid rgba(61,220,151,.2)}
+.badge-unread{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;
+  background:rgba(255,184,77,.12);color:var(--warn);border:1px solid rgba(255,184,77,.2)}
+.badge-arch{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;
+  background:var(--surface-3);color:var(--text-3)}
+.card-actions{position:absolute;top:8px;right:8px;display:flex;gap:2px;
+  background:rgba(19,23,32,.92);backdrop-filter:blur(8px);border:1px solid var(--border-soft);
+  border-radius:11px;padding:3px;opacity:0;transform:translateY(-4px) scale(.96);pointer-events:none;
+  transition:.16s var(--ease);z-index:5}
+.card:hover .card-actions,.card:focus-within .card-actions{opacity:1;transform:none;pointer-events:auto}
+.card-actions button{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+  font-size:12.5px;color:var(--text-2);transition:.14s var(--ease)}
+.card-actions button:hover{background:var(--surface-3);color:var(--text)}
+.card-actions button.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.sel-wrap{position:absolute;top:9px;left:9px;z-index:6;opacity:0;transition:.16s var(--ease)}
+.card:hover .sel-wrap,.card.is-selected .sel-wrap,.list-view .sel-wrap{opacity:1}
+.sel-wrap input{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:6px;
+  border:1.5px solid var(--border);background:rgba(10,12,17,.8);cursor:pointer;display:grid;place-items:center}
+.sel-wrap input:checked{background:var(--accent);border-color:var(--accent)}
+.sel-wrap input:checked::after{content:"✓";font-size:11px;color:#fff;font-weight:800;line-height:1}
+
+/* List view */
+.list-view .card{flex-direction:row;align-items:center;gap:12px;padding:9px 12px;border-radius:12px;animation:none}
+.list-view .card:hover{transform:none}
+.list-view .favicon{width:30px;height:30px;flex:0 0 30px;border-radius:9px}
+.list-view .favicon img{width:18px;height:18px}
+.list-view .card-top{flex:1 1 auto;min-width:0;align-items:center;gap:11px}
+.list-view .card-headings{gap:0}
+.list-view .card-title{-webkit-line-clamp:1;font-size:13.4px}
+.list-view .card-desc{display:none}
+.list-view .card-tags{flex:0 0 auto;max-width:230px;overflow:hidden}
+.list-view .card-foot{flex:0 0 auto;margin:0;padding:0}
+.list-view .card-domain{display:none}
+.list-view .card-actions{position:static;opacity:0;transform:none;background:none;border:none;padding:0}
+.list-view .card:hover .card-actions{opacity:1}
+.list-view .sel-wrap{position:static;opacity:1;margin-right:2px}
+
+/* Empty */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:70px 20px;gap:12px;color:var(--text-3)}
+.empty .e-icon{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:27px;
+  background:var(--surface);border:1px solid var(--border-soft);box-shadow:var(--shadow-1)}
+.empty h3{font-size:16px;color:var(--text-2);font-weight:600}
+.empty p{font-size:13px;max-width:400px;line-height:1.6}
+
+/* Bulk bar */
+.bulk-bar{position:fixed;left:50%;bottom:20px;transform:translate(-50%,140%);
+  display:flex;align-items:center;gap:6px;padding:8px 10px;background:rgba(24,29,40,.97);
+  backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;
+  box-shadow:var(--shadow-2);z-index:120;transition:transform .3s var(--ease);
+  max-width:calc(100vw - 24px);overflow-x:auto;scrollbar-width:none}
+.bulk-bar::-webkit-scrollbar{display:none}
+.bulk-bar.show{transform:translate(-50%,0)}
+.bulk-count{font-size:12.5px;font-weight:650;padding:0 8px;white-space:nowrap;color:var(--accent)}
+.bulk-bar .btn{height:34px;padding:0 11px;font-size:12.5px;border-radius:10px}
+
+/* Modals */
+.modal-backdrop{position:fixed;inset:0;background:rgba(5,7,11,.72);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:20px;z-index:200;
+  animation:fadeIn .18s var(--ease);overflow-y:auto}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{width:100%;max-width:560px;max-height:90dvh;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-2);
+  animation:modalIn .24s var(--ease);overflow:hidden;margin:auto}
+@keyframes modalIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+.modal.lg{max-width:760px}.modal.sm{max-width:420px}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:18px 20px 12px;border-bottom:1px solid var(--border-soft);flex:0 0 auto}
+.modal-title{font-size:16px;font-weight:700}
+.modal-sub{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.modal-body{padding:18px 20px;overflow-y:auto;flex:1}
+.modal-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;
+  padding:14px 20px;border-top:1px solid var(--border-soft);flex:0 0 auto;flex-wrap:wrap}
+.modal-foot .spacer{flex:1}
+
+/* Forms */
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px}
+.field .hint{font-size:11.5px;color:var(--text-3);margin-top:5px;line-height:1.5}
+.input,.textarea,select.input{width:100%;padding:10px 12px;border-radius:11px;
+  background:#0c0f16;border:1px solid var(--border-soft);color:var(--text);font-size:13.5px;
+  -webkit-appearance:none;appearance:none;transition:.16s var(--ease)}
+select.input{padding-right:32px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2398a2b8' stroke-width='2.4' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center}
+.input:focus,.textarea:focus{outline:none;border-color:rgba(109,140,255,.55);box-shadow:0 0 0 4px rgba(109,140,255,.10)}
+.textarea{resize:vertical;min-height:92px;line-height:1.6;font-family:inherit}
+.input::placeholder,.textarea::placeholder{color:var(--text-3)}
+.row{display:flex;gap:10px}
+.row>*{flex:1;min-width:0}
+.checkline{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text-2);cursor:pointer;padding:7px 0}
+.checkline input{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:6px;flex:0 0 18px;
+  border:1.5px solid var(--border);background:#0c0f16;cursor:pointer;display:grid;place-items:center}
+.checkline input:checked{background:var(--accent);border-color:var(--accent)}
+.checkline input:checked::after{content:"✓";font-size:11px;color:#fff;font-weight:800;line-height:1}
+.url-row{display:flex;gap:8px}
+.url-row .input{flex:1}
+.fetch-status{font-size:11.5px;margin-top:6px;min-height:16px;display:flex;align-items:center;gap:6px}
+.fetch-status.loading{color:var(--accent)}
+.fetch-status.ok{color:var(--ok)}
+.fetch-status.err{color:var(--warn)}
+.spinner{width:12px;height:12px;border:2px solid rgba(109,140,255,.25);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tag-editor{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:7px 8px;border-radius:11px;
+  background:#0c0f16;border:1px solid var(--border-soft);min-height:44px}
+.tag-editor:focus-within{border-color:rgba(109,140,255,.55);box-shadow:0 0 0 4px rgba(109,140,255,.10)}
+.tag-editor .tag-token{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:20px;
+  background:var(--accent-soft);border:1px solid rgba(109,140,255,.28);font-size:11.5px;color:#b9c7ff}
+.tag-editor .tag-token button{color:#8ea3e8;font-size:12px;line-height:1}
+.tag-editor .tag-token button:hover{color:var(--danger)}
+.tag-editor input{flex:1;min-width:110px;background:none;border:none;outline:none;font-size:13px;padding:4px 2px;color:var(--text)}
+
+/* Category manager row */
+.cat-row{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:12px;
+  background:#0c0f16;border:1px solid var(--border-soft);margin-bottom:7px}
+.cat-row input[type="color"]{-webkit-appearance:none;appearance:none;width:30px;height:30px;padding:0;border:none;
+  border-radius:9px;background:none;cursor:pointer;flex:0 0 30px}
+.cat-row input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
+.cat-row input[type="color"]::-webkit-color-swatch{border:1px solid var(--border);border-radius:9px}
+.cat-row .cat-name-input{flex:1;min-width:0;background:none;border:1px solid transparent;border-radius:8px;
+  padding:6px 8px;font-size:13.5px;color:var(--text)}
+.cat-row .cat-name-input:focus{outline:none;background:var(--surface);border-color:var(--border)}
+.cat-row .cat-del{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--text-3);font-size:13px}
+.cat-row .cat-del:hover{background:var(--danger-soft);color:var(--danger)}
+
+/* Settings */
+.settings-section{margin-bottom:22px}
+.settings-section h4{font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid var(--border-soft)}
+.setting-row:last-child{border-bottom:none}
+.setting-row .sr-label{font-size:13.5px;color:var(--text)}
+.setting-row .sr-desc{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.setting-row .sr-control .select{height:34px;font-size:12.5px;padding:0 28px 0 10px}
+
+/* Shortcuts */
+.kbd-grid{display:grid;grid-template-columns:1fr auto;gap:9px 18px;align-items:center}
+.kbd-grid .k-desc{font-size:13px;color:var(--text-2)}
+kbd{display:inline-block;padding:3px 8px;border-radius:7px;font-size:11.5px;font-family:inherit;
+  background:var(--surface-3);border:1px solid var(--border);border-bottom-width:2px;color:var(--text);
+  font-weight:600;min-width:24px;text-align:center}
+
+/* Toasts */
+.toasts{position:fixed;right:18px;bottom:18px;z-index:500;display:flex;flex-direction:column;
+  gap:9px;align-items:flex-end;pointer-events:none;max-width:min(360px,calc(100vw - 36px))}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:13px;
+  background:rgba(24,29,40,.97);backdrop-filter:blur(14px);border:1px solid var(--border);
+  box-shadow:var(--shadow-2);font-size:13px;color:var(--text);pointer-events:auto;
+  animation:toastIn .26s var(--ease);max-width:100%}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px) scale(.97)}to{opacity:1;transform:none}}
+.toast.out{animation:toastOut .22s var(--ease) forwards}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px) scale(.96)}}
+.toast .t-icon{font-size:15px;line-height:1.3;flex:0 0 auto}
+.toast .t-body{flex:1;min-width:0;line-height:1.45;word-break:break-word}
+.toast.success{border-color:rgba(61,220,151,.3)}.toast.success .t-icon{color:var(--ok)}
+.toast.error{border-color:rgba(255,95,112,.3)}.toast.error .t-icon{color:var(--danger)}
+.toast.warn{border-color:rgba(255,184,77,.3)}.toast.warn .t-icon{color:var(--warn)}
+.toast.info .t-icon{color:var(--accent)}
+
+/* Filter panel */
+.filter-panel{position:absolute;top:calc(100% + 8px);right:0;width:340px;max-width:calc(100vw - 32px);
+  background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-2);
+  padding:16px;z-index:80;display:none;max-height:min(70dvh,600px);overflow-y:auto}
+.filter-panel.show{display:block;animation:modalIn .2s var(--ease)}
+.filter-panel h4{font-size:11px;font-weight:750;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin:0 0 9px}
+.filter-panel .fp-section{margin-bottom:16px}
+.filter-panel .fp-section:last-child{margin-bottom:0}
+.filter-choices{display:flex;flex-wrap:wrap;gap:6px;max-height:130px;overflow-y:auto}
+.fc{font-size:11.5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border-soft);
+  background:var(--surface);color:var(--text-2);transition:.14s var(--ease);
+  display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.fc:hover{background:var(--surface-3);color:var(--text)}
+.fc.on{background:var(--accent-soft);border-color:rgba(109,140,255,.42);color:var(--text)}
+.fc .fc-dot{width:7px;height:7px;border-radius:50%;flex:0 0 7px}
+
+/* Mobile */
+.only-mobile{display:none}
+.scrim{position:fixed;inset:0;background:rgba(5,7,11,.6);backdrop-filter:blur(3px);
+  z-index:55;opacity:0;pointer-events:none;transition:opacity .25s var(--ease)}
+.scrim.show{opacity:1;pointer-events:auto}
+
+@media (max-width:900px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-102%);
+    box-shadow:var(--shadow-2);border-right:1px solid var(--border)}
+  .sidebar.open{transform:none}
+  .only-mobile{display:grid}
+  .content{padding:12px 14px 100px}
+  .stats{padding:10px 14px 2px}
+  .chips-row{padding:10px 14px 0}
+  .topbar{padding:10px 14px;gap:8px}
+  .search-wrap{order:-1;flex:1 1 100%}
+  .toolbar{flex:1 1 100%;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .toolbar::-webkit-scrollbar{display:none}
+}
+@media (max-width:560px){
+  .bookmark-container{grid-template-columns:1fr}
+  .modal{max-height:94dvh;border-radius:18px}
+  .modal-backdrop{padding:10px}
+  .toasts{right:10px;left:10px;bottom:10px;align-items:stretch;max-width:none}
+  .bulk-bar{bottom:10px;padding:7px 8px}
+  .card-actions{opacity:1;transform:none;pointer-events:auto;position:static;background:none;border:none;padding:0;margin-top:2px}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div class="brand-text"><strong>Rana</strong><span>Bookmark Manager</span></div>
+      </div>
+      <button class="icon-btn only-mobile" id="sidebarClose" aria-label="Close">✕</button>
+    </div>
+    <div class="sb-scroll">
+      <nav class="nav" id="nav">
+        <button class="nav-item is-active" data-view="all"><span class="ni-icon">🏠</span><span class="ni-label">All Bookmarks</span><span class="ni-count" id="cAll">0</span></button>
+        <button class="nav-item" data-view="favorites"><span class="ni-icon">⭐</span><span class="ni-label">Favorites</span><span class="ni-count" id="cFav">0</span></button>
+        <button class="nav-item" data-view="unread"><span class="ni-icon">📖</span><span class="ni-label">Unread</span><span class="ni-count" id="cUnread">0</span></button>
+        <button class="nav-item" data-view="archived"><span class="ni-icon">📦</span><span class="ni-label">Archived</span><span class="ni-count" id="cArch">0</span></button>
+      </nav>
+      <section class="side-section">
+        <div class="side-head"><span>Categories</span><button class="mini-btn" id="manageCatsBtn" title="Manage">＋</button></div>
+        <div class="cat-list" id="categoryList"></div>
+      </section>
+      <section class="side-section">
+        <div class="side-head"><span>Tags</span></div>
+        <div class="tag-cloud" id="tagCloud"></div>
+      </section>
+    </div>
+    <div class="sb-foot">
+      <button id="settingsBtn" type="button">⚙️ <span>Settings</span></button>
+      <button id="shortcutsBtn" type="button">⌨️ <span>Keyboard shortcuts</span></button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn only-mobile" id="menuBtn" aria-label="Menu">☰</button>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="searchInput" type="search" placeholder="Search…  ( / )" autocomplete="off" />
+        <button class="clear-btn" id="clearSearch" hidden aria-label="Clear">✕</button>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" id="addBtn" type="button">＋ <span>Add</span></button>
+        <div style="position:relative">
+          <button class="btn" id="filterBtn" type="button">⚗ <span>Filter</span><span id="filterCount"></span></button>
+          <div class="filter-panel" id="filterPanel"></div>
+        </div>
+        <select class="select" id="sortSelect"></select>
+        <div class="view-toggle">
+          <button data-view-mode="grid" class="is-active" title="Grid">▦</button>
+          <button data-view-mode="list" title="List">☰</button>
+        </div>
+        <button class="btn" id="dataBtn" type="button">⇅ <span>Data</span></button>
+      </div>
+    </header>
+
+    <div class="stats" id="stats"></div>
+    <div class="chips-row" id="activeFilters" hidden></div>
+
+    <div class="content" id="content">
+      <div class="content-head"><div class="result-count" id="resultCount"></div></div>
+      <div class="bookmark-container" id="bookmarkContainer"></div>
+      <div id="emptyState"></div>
+    </div>
+  </main>
+</div>
+
+<div class="bulk-bar" id="bulkBar"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   MARKLET — Bookmark Manager
+   ============================================================ */
+
+/* ---------- 1. Utilities ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function el(tag, props, ...children) {
+  const n = document.createElement(tag);
+  if (props) for (const k in props) {
+    const v = props[k];
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+    else if (k === 'dataset') Object.assign(n.dataset, v);
+    else if (k === 'value') n.value = v;
+    else if (['checked','disabled','hidden','selected'].includes(k)) n[k] = !!v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
+    else n.setAttribute(k, v);
+  }
+  addKids(n, children);
+  return n;
+}
+function addKids(n, kids) {
+  for (const c of kids) {
+    if (c === null || c === undefined || c === false) continue;
+    if (Array.isArray(c)) addKids(n, c);
+    else if (c instanceof Node) n.appendChild(c);
+    else n.appendChild(document.createTextNode(String(c)));
+  }
+}
+function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+function debounce(fn, w) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), w); }; }
+
+const TRACKING = new Set(['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id',
+  'gclid','fbclid','mc_cid','mc_eid','igshid','ref','ref_src','source','si','s_kwcid','msclkid','yclid','spm']);
+
+function normalizeUrl(raw) {
+  if (!raw) return null;
+  let s = String(raw).trim();
+  if (!s) return null;
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) {
+    if (/^(javascript|data|vbscript|file):/i.test(s)) return null;
+    s = 'https://' + s;
+  }
+  let u;
+  try { u = new URL(s); } catch { return null; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  if (!u.hostname || u.hostname.indexOf('.') === -1) return null;
+  u.hash = '';
+  const keys = Array.from(u.searchParams.keys());
+  for (const k of keys) {
+    const lk = k.toLowerCase();
+    if (TRACKING.has(lk) || lk.startsWith('utm_')) u.searchParams.delete(k);
+  }
+  let path = u.pathname.replace(/\/+$/, '');
+  if (path === '') path = '/';
+  let out = u.protocol + '//' + u.hostname.toLowerCase();
+  if (u.port) out += ':' + u.port;
+  out += path;
+  const qs = u.searchParams.toString();
+  if (qs) out += '?' + qs;
+  return out;
+}
+function domainOf(url) {
+  try { return new URL(/^https?:\/\//i.test(url) ? url : 'https://' + url).hostname.replace(/^www\./i, '').toLowerCase(); }
+  catch { return ''; }
+}
+function isSafeUrl(u) { try { const x = new URL(u); return x.protocol === 'http:' || x.protocol === 'https:'; } catch { return false; } }
+
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const d = Date.now() - ts, m = 60000, h = 3600000, day = 86400000;
+  if (d < m) return 'just now';
+  if (d < h) return Math.floor(d / m) + 'm ago';
+  if (d < day) return Math.floor(d / h) + 'h ago';
+  if (d < day * 7) return Math.floor(d / day) + 'd ago';
+  if (d < day * 30) return Math.floor(d / (day * 7)) + 'w ago';
+  if (d < day * 365) return Math.floor(d / (day * 30)) + 'mo ago';
+  return Math.floor(d / (day * 365)) + 'y ago';
+}
+
+function colorFromString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  const p = ['#6d8cff','#a06bff','#3ddc97','#ffb84d','#ff6b9d','#4dd0e1','#ff8a65','#9ccc65','#f06292','#7986cb'];
+  return p[h % p.length];
+}
+function hexToRgba(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/* ---------- 2. Storage (IndexedDB) ---------- */
+const DB_NAME = 'marklet-db', DB_VER = 1;
+const S_BM = 'bookmarks', S_CAT = 'categories', S_KV = 'kv';
+
+const storage = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      if (!('indexedDB' in window)) return rej(new Error('IndexedDB unsupported'));
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(S_BM)) {
+          const s = db.createObjectStore(S_BM, { keyPath: 'id' });
+          s.createIndex('normalizedUrl', 'normalizedUrl');
+        }
+        if (!db.objectStoreNames.contains(S_CAT)) db.createObjectStore(S_CAT, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(S_KV)) db.createObjectStore(S_KV, { keyPath: 'key' });
+      };
+      req.onsuccess = () => { this.db = req.result; res(this.db); };
+      req.onerror = () => rej(req.error);
+    });
+  },
+  _req(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  getAll(s) { return this._req(this.db.transaction(s, 'readonly').objectStore(s).getAll()); },
+  get(s, k) { return this._req(this.db.transaction(s, 'readonly').objectStore(s).get(k)); },
+  put(s, v) { return this._req(this.db.transaction(s, 'readwrite').objectStore(s).put(v)); },
+  remove(s, k) { return this._req(this.db.transaction(s, 'readwrite').objectStore(s).delete(k)); },
+  clear(s) { return this._req(this.db.transaction(s, 'readwrite').objectStore(s).clear()); },
+  bulkPut(s, arr) {
+    if (!arr.length) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction(s, 'readwrite');
+      const os = tx.objectStore(s);
+      arr.forEach(x => os.put(x));
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  },
+  bulkDelete(s, keys) {
+    if (!keys.length) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction(s, 'readwrite');
+      const os = tx.objectStore(s);
+      keys.forEach(k => os.delete(k));
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  }
+};
+
+/* ---------- 3. App state ---------- */
+const DEFAULT_CATEGORIES = [
+  { name: 'Technology', color: '#4d8dff' }, { name: 'Education', color: '#3ddc97' },
+  { name: 'Tools', color: '#4dd0e1' }, { name: 'Development', color: '#7c6bff' },
+  { name: 'AI', color: '#a06bff' }, { name: 'Productivity', color: '#ffb84d' },
+  { name: 'Entertainment', color: '#ff6b9d' }, { name: 'News', color: '#ff8a65' },
+  { name: 'Finance', color: '#ffd54d' }, { name: 'Shopping', color: '#f06292' },
+  { name: 'Social', color: '#26c6da' }, { name: 'Reference', color: '#9ccc65' },
+  { name: 'Other', color: '#8b93a7' }
+];
+const UNCAT = 'uncategorized';
+
+const App = {
+  bookmarks: [],
+  categories: [],
+  catMap: new Map(),
+  settings: {
+    view: 'grid',
+    sort: 'created-desc',
+    accent: '#6d8cff',
+    confirmDelete: true,
+    autoFetch: true,
+    autoDup: true
+  },
+  filters: {
+    view: 'all',
+    categories: new Set(),
+    tags: new Set(),
+    read: null,
+    dateFrom: null,
+    dateTo: null
+  },
+  search: '',
+  selected: new Set(),
+  filtered: [],
+  favicons: new Map(),
+  metaCache: new Map(),
+  _loaded: false
+};
+
+/* ---------- 4. Category helpers ---------- */
+function buildCatMap() {
+  App.catMap.clear();
+  App.categories.forEach(c => App.catMap.set(c.id, c));
+  App.catMap.set(UNCAT, { id: UNCAT, name: 'Uncategorized', color: '#6b7590', virtual: true });
+}
+function getCat(id) { return App.catMap.get(id) || App.catMap.get(UNCAT); }
+
+/* ---------- 5. Toast notifications ---------- */
+const toasts = {
+  show(msg, type = 'info', ms = 2600) {
+    const icons = { success: '✓', error: '✕', warn: '⚠', info: 'ℹ' };
+    const t = el('div', { class: `toast ${type}` },
+      el('span', { class: 't-icon', text: icons[type] || 'ℹ' }),
+      el('span', { class: 't-body', text: msg })
+    );
+    $('#toasts').appendChild(t);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 250); }, ms);
+  },
+  success(m) { this.show(m, 'success'); },
+  error(m) { this.show(m, 'error'); },
+  warn(m) { this.show(m, 'warn'); },
+  info(m) { this.show(m, 'info'); }
+};
+
+/* ---------- 6. Modal system ---------- */
+const modal = {
+  current: null,
+  open(node) {
+    this.close();
+    const back = el('div', { class: 'modal-backdrop' });
+    back.appendChild(node);
+    back.addEventListener('mousedown', e => { if (e.target === back) this.close(); });
+    document.body.appendChild(back);
+    this.current = back;
+    setTimeout(() => {
+      const first = node.querySelector('input:not([type=hidden]),textarea,button');
+      if (first) first.focus();
+    }, 40);
+  },
+  close() {
+    if (this.current) { this.current.remove(); this.current = null; }
+  },
+  confirm(opts) {
+    return new Promise(res => {
+      const m = el('div', { class: 'modal sm' },
+        el('div', { class: 'modal-head' }, el('div', null, el('div', { class: 'modal-title', text: opts.title || 'Confirm' }))),
+        el('div', { class: 'modal-body' }, el('p', { text: opts.message || '', style: { color: 'var(--text-2)', fontSize: '13.5px', lineHeight: 1.6 } })),
+        el('div', { class: 'modal-foot' },
+          el('button', { class: 'btn', onClick: () => { this.close(); res(false); } }, 'Cancel'),
+          el('button', { class: `btn ${opts.danger ? 'danger' : 'primary'}`, onClick: () => { this.close(); res(true); } }, opts.confirmText || 'Confirm')
+        )
+      );
+      this.open(m);
+    });
+  }
+};
+
+/* ---------- 7. Favicon rendering ---------- */
+function faviconNode(bm, size = 38) {
+  const wrap = el('div', { class: 'favicon', style: { width: size + 'px', height: size + 'px', flex: `0 0 ${size}px` } });
+  const letter = (bm.domain || bm.title || '?').charAt(0).toUpperCase();
+  const color = colorFromString(bm.domain || bm.url);
+
+  const showLetter = () => {
+    clear(wrap);
+    wrap.appendChild(el('div', { class: 'letter', text: letter, style: { background: color, borderRadius: 'inherit' } }));
+  };
+
+  const candidates = [];
+  if (bm.favicon) candidates.push(bm.favicon);
+  const cached = App.favicons.get(bm.domain);
+  if (cached && cached !== bm.favicon) candidates.push(cached);
+  if (bm.domain) {
+    candidates.push('https://www.google.com/s2/favicons?domain=' + encodeURIComponent(bm.domain) + '&sz=64');
+    candidates.push('https://icons.duckduckgo.com/ip3/' + encodeURIComponent(bm.domain) + '.ico');
+  }
+
+  if (!candidates.length) { showLetter(); return wrap; }
+
+  let i = 0;
+  const tryNext = () => {
+    if (i >= candidates.length) { showLetter(); return; }
+    const src = candidates[i++];
+    const img = el('img', { src, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
+    img.onload = () => {
+      clear(wrap);
+      wrap.appendChild(img);
+      if (bm.domain) { App.favicons.set(bm.domain, src); storage.put(S_KV, { key: 'favicon:' + bm.domain, value: src }).catch(() => {}); }
+    };
+    img.onerror = tryNext;
+    clear(wrap);
+    wrap.appendChild(img);
+  };
+  tryNext();
+  return wrap;
+}
+
+/* ---------- 8. Metadata fetching ---------- */
+const metadata = {
+  async fetch(rawUrl) {
+    const url = normalizeUrl(rawUrl);
+    if (!url) return { ok: false, error: 'invalid' };
+    if (!navigator.onLine) return { ok: false, error: 'offline' };
+
+    const cached = App.metaCache.get(url);
+    if (cached && Date.now() - cached.ts < 14 * 86400000) {
+      return { ok: true, fromCache: true, ...cached };
+    }
+
+    let html = null;
+    try {
+      html = await this._direct(url);
+    } catch {
+      try { html = await this._proxy(url); }
+      catch { return { ok: false, error: 'blocked' }; }
+    }
+    if (!html) return { ok: false, error: 'blocked' };
+
+    const parsed = this._parse(html, url);
+    if (!parsed) return { ok: false, error: 'parse' };
+
+    const entry = { ts: Date.now(), ...parsed };
+    App.metaCache.set(url, entry);
+    storage.put(S_KV, { key: 'meta:' + url, value: entry }).catch(() => {});
+    return { ok: true, ...parsed };
+  },
+  async _direct(url) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 7000);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, credentials: 'omit', redirect: 'follow' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.text();
+    } finally { clearTimeout(t); }
+  },
+  async _proxy(url) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { signal: ctrl.signal });
+      if (!r.ok) throw new Error('proxy');
+      const j = await r.json();
+      if (!j || typeof j.contents !== 'string') throw new Error('no contents');
+      return j.contents;
+    } finally { clearTimeout(t); }
+  },
+  _parse(html, base) {
+    let doc;
+    try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch { return null; }
+    if (!doc) return null;
+    const meta = (...names) => {
+      for (const n of names) {
+        const m = doc.querySelector(`meta[property="${n}"],meta[name="${n}"]`);
+        if (m && m.content) return m.content.trim();
+      }
+      return '';
+    };
+    let title = meta('og:title', 'twitter:title');
+    if (!title) title = (doc.querySelector('title')?.textContent || '').trim();
+    if (!title) title = (doc.querySelector('h1')?.textContent || '').trim();
+
+    let desc = meta('og:description', 'description', 'twitter:description');
+    if (!desc) {
+      for (const p of doc.querySelectorAll('p')) {
+        const t = (p.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t.length > 80) { desc = t; break; }
+      }
+    }
+    const site = meta('og:site_name', 'application-name') || domainOf(base);
+
+    let favicon = '';
+    for (const sel of ['link[rel="apple-touch-icon"]','link[rel="icon"]','link[rel="shortcut icon"]','link[rel~="icon"]']) {
+      const n = doc.querySelector(sel);
+      if (n && n.getAttribute('href')) {
+        try { favicon = new URL(n.getAttribute('href'), base).href; } catch {}
+        if (favicon) break;
+      }
+    }
+    const clean = (s, m) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, m);
+    return {
+      title: clean(title, 300),
+      description: clean(desc, 800),
+      siteName: clean(site, 120),
+      favicon
+    };
+  }
+};
+
+/* ---------- 9. Search blob ---------- */
+function makeBlob(b) {
+  const c = getCat(b.categoryId);
+  return [b.title, b.url, b.normalizedUrl, b.domain, b.description, c.name, (b.tags || []).join(' ')]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+
+/* ---------- 10. Filter + sort ---------- */
+const SORT_OPTIONS = [
+  { id: 'created-desc', label: 'Recently Added' },
+  { id: 'created-asc', label: 'Oldest Added' },
+  { id: 'updated-desc', label: 'Recently Modified' },
+  { id: 'opened-desc', label: 'Recently Opened' },
+  { id: 'title-asc', label: 'Alphabetical A→Z' },
+  { id: 'title-desc', label: 'Alphabetical Z→A' },
+  { id: 'domain-asc', label: 'Domain A→Z' },
+  { id: 'category-asc', label: 'Category' },
+  { id: 'used-desc', label: 'Most Used' },
+  { id: 'favorite-first', label: 'Favorites First' }
+];
+
+function applyFilters() {
+  const f = App.filters;
+  const q = App.search.trim().toLowerCase();
+  const terms = q ? q.split(/\s+/).filter(Boolean) : [];
+  const hasCats = f.categories.size > 0;
+  const tagList = Array.from(f.tags);
+  const hasTags = tagList.length > 0;
+
+  const out = [];
+  for (const b of App.bookmarks) {
+    if (f.view === 'archived') { if (!b.archived) continue; }
+    else if (b.archived) continue;
+
+    if (f.view === 'favorites' && !b.favorite) continue;
+    if (f.view === 'unread' && b.read) continue;
+
+    if (f.read === 'read' && !b.read) continue;
+    if (f.read === 'unread' && b.read) continue;
+
+    if (hasCats && !f.categories.has(b.categoryId)) continue;
+
+    if (hasTags) {
+      let ok = true;
+      for (const t of tagList) if (b.tags.indexOf(t) === -1) { ok = false; break; }
+      if (!ok) continue;
+    }
+
+    if (f.dateFrom && b.createdAt < f.dateFrom) continue;
+    if (f.dateTo && b.createdAt > f.dateTo) continue;
+
+    if (terms.length) {
+      const blob = b._s || makeBlob(b);
+      let ok = true;
+      for (const t of terms) if (blob.indexOf(t) === -1) { ok = false; break; }
+      if (!ok) continue;
+    }
+    out.push(b);
+  }
+
+  const sortId = App.settings.sort;
+  out.sort((a, b) => {
+    const tA = (a.title || a.domain || '').toLowerCase();
+    const tB = (b.title || b.domain || '').toLowerCase();
+    switch (sortId) {
+      case 'created-asc': return a.createdAt - b.createdAt;
+      case 'updated-desc': return (b.updatedAt || 0) - (a.updatedAt || 0);
+      case 'opened-desc': return (b.lastOpenedAt || 0) - (a.lastOpenedAt || 0);
+      case 'title-asc': return tA.localeCompare(tB);
+      case 'title-desc': return tB.localeCompare(tA);
+      case 'domain-asc': return (a.domain || '').localeCompare(b.domain || '') || tA.localeCompare(tB);
+      case 'category-asc': {
+        const ca = getCat(a.categoryId).name, cb = getCat(b.categoryId).name;
+        return ca.localeCompare(cb) || tA.localeCompare(tB);
+      }
+      case 'used-desc': return (b.openCount || 0) - (a.openCount || 0) || b.createdAt - a.createdAt;
+      case 'favorite-first': return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || b.createdAt - a.createdAt;
+      default: return b.createdAt - a.createdAt;
+    }
+  });
+
+  App.filtered = out;
+}
+
+/* ---------- 11. Rendering ---------- */
+function renderAll() {
+  applyFilters();
+  renderSidebar();
+  renderStats();
+  renderActiveFilters();
+  renderBookmarks();
+  renderBulkBar();
+}
+
+function renderSidebar() {
+  const total = App.bookmarks.length;
+  const fav = App.bookmarks.filter(b => b.favorite && !b.archived).length;
+  const unread = App.bookmarks.filter(b => !b.read && !b.archived).length;
+  const arch = App.bookmarks.filter(b => b.archived).length;
+  $('#cAll').textContent = total;
+  $('#cFav').textContent = fav;
+  $('#cUnread').textContent = unread;
+  $('#cArch').textContent = arch;
+
+  // Navigation active state
+  $$('#nav .nav-item').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.view === App.filters.view);
+  });
+
+  // Categories
+  const catList = $('#categoryList');
+  clear(catList);
+  const counts = new Map();
+  for (const b of App.bookmarks) {
+    if (b.archived) continue;
+    counts.set(b.categoryId, (counts.get(b.categoryId) || 0) + 1);
+  }
+  const sorted = App.categories.slice().sort((a, b) => a.name.localeCompare(b.name));
+  for (const c of sorted) {
+    const count = counts.get(c.id) || 0;
+    const active = App.filters.categories.has(c.id);
+    const btn = el('button', { class: `cat-item${active ? ' is-active' : ''}` },
+      el('span', { class: 'cat-dot', style: { background: c.color, color: c.color } }),
+      el('span', { class: 'cat-name', text: c.name }),
+      el('span', { class: 'cat-count', text: count })
+    );
+    btn.onclick = () => toggleCategoryFilter(c.id);
+    catList.appendChild(btn);
+  }
+
+  // Tags
+  const tagCounts = new Map();
+  for (const b of App.bookmarks) {
+    if (b.archived) continue;
+    for (const t of b.tags) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+  }
+  const topTags = Array.from(tagCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const cloud = $('#tagCloud');
+  clear(cloud);
+  if (!topTags.length) {
+    cloud.appendChild(el('span', { text: 'No tags yet', style: { fontSize: '11.5px', color: 'var(--text-3)' } }));
+  } else {
+    for (const [tag, count] of topTags) {
+      const active = App.filters.tags.has(tag);
+      const pill = el('button', { class: `tag-pill${active ? ' is-active' : ''}` },
+        el('span', { text: tag }), el('b', { text: count })
+      );
+      pill.onclick = () => toggleTagFilter(tag);
+      cloud.appendChild(pill);
+    }
+  }
+}
+
+function renderStats() {
+  const total = App.bookmarks.length;
+  const fav = App.bookmarks.filter(b => b.favorite).length;
+  const unread = App.bookmarks.filter(b => !b.read && !b.archived).length;
+  const arch = App.bookmarks.filter(b => b.archived).length;
+  const cats = App.categories.length;
+  const tagSet = new Set();
+  for (const b of App.bookmarks) b.tags.forEach(t => tagSet.add(t));
+  const stats = [
+    ['Total', total], ['Favorites', fav], ['Unread', unread],
+    ['Archived', arch], ['Categories', cats], ['Tags', tagSet.size]
+  ];
+  const wrap = $('#stats');
+  clear(wrap);
+  for (const [label, val] of stats) {
+    wrap.appendChild(el('div', { class: 'stat' },
+      el('span', { class: 's-val', text: val }),
+      el('span', { class: 's-lab', text: label })
+    ));
+  }
+}
+
+function renderActiveFilters() {
+  const row = $('#activeFilters');
+  const items = [];
+  const f = App.filters;
+
+  if (f.view !== 'all') items.push(['View: ' + f.view, () => { f.view = 'all'; renderAll(); }]);
+  f.categories.forEach(id => {
+    const c = getCat(id);
+    items.push(['Category: ' + c.name, () => toggleCategoryFilter(id)]);
+  });
+  f.tags.forEach(t => items.push(['Tag: ' + t, () => toggleTagFilter(t)]));
+  if (f.read) items.push([f.read === 'read' ? 'Read' : 'Unread', () => { f.read = null; renderAll(); }]);
+  if (f.dateFrom || f.dateTo) items.push(['Date range', () => { f.dateFrom = null; f.dateTo = null; renderAll(); }]);
+  if (App.search) items.push(['Search: ' + App.search, () => { App.search = ''; $('#searchInput').value = ''; $('#clearSearch').hidden = true; renderAll(); }]);
+
+  if (!items.length) { row.hidden = true; clear(row); return; }
+  row.hidden = false;
+  clear(row);
+  for (const [label, onRemove] of items) {
+    const chip = el('div', { class: 'chip accent' },
+      el('span', { text: label }),
+      el('button', { text: '✕', onClick: onRemove, 'aria-label': 'Remove filter' })
+    );
+    row.appendChild(chip);
+  }
+  if (items.length > 1) {
+    row.appendChild(el('button', {
+      class: 'chip', text: 'Reset all',
+      onClick: () => { resetFilters(); },
+      style: { cursor: 'pointer' }
+    }));
+  }
+}
+
+function resetFilters() {
+  App.filters = { view: 'all', categories: new Set(), tags: new Set(), read: null, dateFrom: null, dateTo: null };
+  App.search = '';
+  $('#searchInput').value = '';
+  $('#clearSearch').hidden = true;
+  renderAll();
+}
+
+function toggleCategoryFilter(id) {
+  const s = App.filters.categories;
+  if (s.has(id)) s.delete(id); else s.add(id);
+  renderAll();
+}
+function toggleTagFilter(tag) {
+  const s = App.filters.tags;
+  if (s.has(tag)) s.delete(tag); else s.add(tag);
+  renderAll();
+}
+
+function renderBookmarks() {
+  const container = $('#bookmarkContainer');
+  const empty = $('#emptyState');
+  const list = App.filtered;
+
+  container.classList.toggle('list-view', App.settings.view === 'list');
+  $('#resultCount').textContent = list.length === 0 ? 'No bookmarks'
+    : `${list.length} bookmark${list.length === 1 ? '' : 's'}`;
+
+  // Empty state
+  if (!list.length) {
+    clear(container);
+    clear(empty);
+    const hasAny = App.bookmarks.length > 0;
+    const box = el('div', { class: 'empty' },
+      el('div', { class: 'e-icon', text: hasAny ? '🔍' : '📚' }),
+      el('h3', { text: hasAny ? 'No matching bookmarks' : 'No bookmarks yet' }),
+      el('p', { text: hasAny ? 'Try adjusting your search or filters.' : 'Click "Add" to save your first bookmark.' })
+    );
+    if (!hasAny) {
+      box.appendChild(el('button', { class: 'btn primary', text: '＋ Add bookmark', onClick: openAddModal }));
+    } else {
+      box.appendChild(el('button', { class: 'btn', text: 'Reset filters', onClick: resetFilters }));
+    }
+    empty.appendChild(box);
+    return;
+  }
+
+  clear(empty);
+
+  // Simple pagination - render 100 at a time
+  const PAGE = 100;
+  const shown = Math.min(list.length, App._renderedCount || PAGE);
+  App._renderedCount = shown;
+
+  clear(container);
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < shown; i++) frag.appendChild(buildCard(list[i]));
+  container.appendChild(frag);
+
+  if (shown < list.length) {
+    const more = el('div', { style: { gridColumn: '1 / -1', textAlign: 'center', padding: '20px' } });
+    const btn = el('button', { class: 'btn', text: `Load more (${list.length - shown} remaining)` });
+    btn.onclick = () => { App._renderedCount = (App._renderedCount || PAGE) + PAGE; renderBookmarks(); };
+    more.appendChild(btn);
+    container.appendChild(more);
+  }
+}
+
+function buildCard(b) {
+  const cat = getCat(b.categoryId);
+  const selected = App.selected.has(b.id);
+  const card = el('article', {
+    class: `card${selected ? ' is-selected' : ''}${b.archived ? ' is-archived' : ''}`,
+    role: 'listitem',
+    dataset: { id: b.id }
+  });
+
+  // Selection checkbox
+  const selWrap = el('label', { class: 'sel-wrap' });
+  const selCb = el('input', { type: 'checkbox', checked: selected, 'aria-label': 'Select bookmark' });
+  selCb.onchange = () => toggleSelect(b.id);
+  selWrap.appendChild(selCb);
+  card.appendChild(selWrap);
+
+  // Quick actions
+  const actions = el('div', { class: 'card-actions' },
+    el('button', { title: 'Open', text: '↗', onClick: (e) => { e.stopPropagation(); openBookmark(b.id); } }),
+    el('button', { title: 'Edit', text: '✎', onClick: (e) => { e.stopPropagation(); openEditModal(b.id); } }),
+    el('button', { title: 'Copy URL', text: '⧉', onClick: (e) => { e.stopPropagation(); copyUrl(b.url); } }),
+    el('button', { title: b.read ? 'Mark unread' : 'Mark read', text: b.read ? '○' : '●', onClick: (e) => { e.stopPropagation(); toggleRead(b.id); } }),
+    el('button', { title: b.archived ? 'Restore' : 'Archive', text: b.archived ? '↺' : '📦', onClick: (e) => { e.stopPropagation(); toggleArchive(b.id); } }),
+    el('button', { title: 'Delete', text: '🗑', class: 'danger', onClick: (e) => { e.stopPropagation(); deleteBookmark(b.id); } })
+  );
+  card.appendChild(actions);
+
+  // Top row: favicon + title/domain + star
+  const top = el('div', { class: 'card-top' });
+  top.appendChild(faviconNode(b, 38));
+  const headings = el('div', { class: 'card-headings' });
+  const titleEl = el('a', {
+    class: 'card-title', href: b.url, target: '_blank', rel: 'noopener noreferrer',
+    text: b.title || b.domain || b.url, title: b.title || b.url
+  });
+  titleEl.onclick = (e) => { e.stopPropagation(); recordOpen(b.id); };
+  headings.appendChild(titleEl);
+  const domEl = el('a', {
+    class: 'card-domain', href: b.url, target: '_blank', rel: 'noopener noreferrer',
+    text: b.domain
+  });
+  domEl.onclick = (e) => e.stopPropagation();
+  headings.appendChild(domEl);
+  top.appendChild(headings);
+
+  const star = el('button', {
+    class: `star-btn${b.favorite ? ' on' : ''}`,
+    text: b.favorite ? '★' : '☆',
+    title: b.favorite ? 'Unfavorite' : 'Favorite',
+    'aria-label': 'Toggle favorite',
+    onClick: (e) => { e.stopPropagation(); toggleFavorite(b.id); }
+  });
+  top.appendChild(star);
+  card.appendChild(top);
+
+  // Description
+  card.appendChild(el('p', { class: 'card-desc', text: b.description || 'No description' }));
+
+  // Tags
+  if (b.tags.length) {
+    const tags = el('div', { class: 'card-tags' });
+    const show = b.tags.slice(0, 4);
+    for (const t of show) {
+      const chip = el('span', { class: 'tag-chip', text: t, title: t });
+      chip.onclick = (e) => { e.stopPropagation(); toggleTagFilter(t); };
+      chip.style.cursor = 'pointer';
+      tags.appendChild(chip);
+    }
+    if (b.tags.length > 4) tags.appendChild(el('span', { class: 'tag-chip more', text: '+' + (b.tags.length - 4) }));
+    card.appendChild(tags);
+  }
+
+  // Footer
+  const foot = el('div', { class: 'card-foot' });
+  foot.appendChild(el('span', {
+    class: 'cat-chip',
+    text: cat.name,
+    style: { background: hexToRgba(cat.color, 0.14), color: cat.color, borderColor: hexToRgba(cat.color, 0.28) }
+  }));
+  foot.appendChild(el('span', { class: 'meta-txt', text: timeAgo(b.createdAt), title: new Date(b.createdAt).toLocaleString() }));
+  if (b.read) foot.appendChild(el('span', { class: 'badge-read', text: 'Read' }));
+  else foot.appendChild(el('span', { class: 'badge-unread', text: 'Unread' }));
+  if (b.archived) foot.appendChild(el('span', { class: 'badge-arch', text: 'Archived' }));
+  card.appendChild(foot);
+
+  return card;
+}
+
+/* ---------- 12. Bookmark operations ---------- */
+function openBookmark(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (!b || !isSafeUrl(b.url)) return;
+  recordOpen(id);
+  window.open(b.url, '_blank', 'noopener,noreferrer');
+}
+async function recordOpen(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (!b) return;
+  b.openCount = (b.openCount || 0) + 1;
+  b.lastOpenedAt = Date.now();
+  storage.put(S_BM, b).catch(() => {});
+}
+function copyUrl(url) {
+  navigator.clipboard?.writeText(url)
+    .then(() => toasts.success('URL copied'))
+    .catch(() => toasts.error('Could not copy'));
+}
+async function toggleFavorite(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (!b) return;
+  b.favorite = !b.favorite;
+  b.updatedAt = Date.now();
+  b._s = makeBlob(b);
+  await storage.put(S_BM, b);
+  renderAll();
+}
+async function toggleRead(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (!b) return;
+  b.read = !b.read;
+  b.updatedAt = Date.now();
+  await storage.put(S_BM, b);
+  renderAll();
+}
+async function toggleArchive(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (!b) return;
+  b.archived = !b.archived;
+  b.updatedAt = Date.now();
+  await storage.put(S_BM, b);
+  toasts.success(b.archived ? 'Archived' : 'Restored');
+  renderAll();
+}
+async function deleteBookmark(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (!b) return;
+  if (App.settings.confirmDelete) {
+    const ok = await modal.confirm({
+      title: 'Delete bookmark?',
+      message: `"${b.title || b.url}" will be permanently removed.`,
+      confirmText: 'Delete', danger: true
+    });
+    if (!ok) return;
+  }
+  App.bookmarks = App.bookmarks.filter(x => x.id !== id);
+  App.selected.delete(id);
+  await storage.remove(S_BM, id);
+  toasts.success('Bookmark deleted');
+  renderAll();
+}
+
+/* ---------- 13. Add/Edit modal ---------- */
+function openAddModal() {
+  openBookmarkModal(null);
+}
+function openEditModal(id) {
+  const b = App.bookmarks.find(x => x.id === id);
+  if (b) openBookmarkModal(b);
+}
+
+function openBookmarkModal(existing) {
+  const isEdit = !!existing;
+  const draft = {
+    url: existing ? existing.url : '',
+    title: existing ? existing.title : '',
+    description: existing ? existing.description : '',
+    categoryId: existing ? existing.categoryId : UNCAT,
+    tags: existing ? existing.tags.slice() : [],
+    favorite: existing ? existing.favorite : false,
+    read: existing ? existing.read : false,
+    favicon: existing ? existing.favicon : '',
+    domain: existing ? existing.domain : ''
+  };
+
+  // URL field
+  const urlInput = el('input', { class: 'input', type: 'text', placeholder: 'https://example.com', value: draft.url });
+  const fetchBtn = el('button', { class: 'btn sm', type: 'button', text: '⟳ Fetch' });
+  const fetchStatus = el('div', { class: 'fetch-status' });
+  const urlRow = el('div', { class: 'url-row' }, urlInput, fetchBtn);
+
+  // Title
+  const titleInput = el('input', { class: 'input', type: 'text', placeholder: 'Page title', value: draft.title, maxlength: 500 });
+
+  // Description
+  const descInput = el('textarea', { class: 'textarea', placeholder: 'A short description of this bookmark (2–5 lines)…', maxlength: 3000 }, draft.description);
+  descInput.value = draft.description;
+
+  // Category select
+  const catSelect = el('select', { class: 'input' });
+  catSelect.appendChild(el('option', { value: UNCAT, text: 'Uncategorized', selected: draft.categoryId === UNCAT }));
+  App.categories.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+    catSelect.appendChild(el('option', { value: c.id, text: c.name, selected: draft.categoryId === c.id }));
+  });
+
+  // Tags editor
+  const tagEditor = el('div', { class: 'tag-editor' });
+  const tagInput = el('input', { type: 'text', placeholder: 'Type and press Enter…' });
+  function renderTagTokens() {
+    $$('.tag-token', tagEditor).forEach(t => t.remove());
+    for (const t of draft.tags) {
+      const token = el('span', { class: 'tag-token' },
+        el('span', { text: t }),
+        el('button', { type: 'button', text: '✕', onClick: () => { draft.tags = draft.tags.filter(x => x !== t); renderTagTokens(); } })
+      );
+      tagEditor.insertBefore(token, tagInput);
+    }
+  }
+  tagEditor.appendChild(tagInput);
+  renderTagTokens();
+
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = tagInput.value.trim().replace(/,$/, '').slice(0, 40);
+      if (v && !draft.tags.includes(v) && draft.tags.length < 30) {
+        draft.tags.push(v);
+        renderTagTokens();
+      }
+      tagInput.value = '';
+    } else if (e.key === 'Backspace' && !tagInput.value && draft.tags.length) {
+      draft.tags.pop();
+      renderTagTokens();
+    }
+  });
+
+  // Favorite / Read checkboxes
+  const favCb = el('input', { type: 'checkbox', checked: draft.favorite });
+  const readCb = el('input', { type: 'checkbox', checked: draft.read });
+
+  // Fetch metadata
+  async function doFetch() {
+    const raw = urlInput.value.trim();
+    if (!raw) { fetchStatus.className = 'fetch-status err'; clear(fetchStatus); fetchStatus.textContent = 'Enter a URL first.'; return; }
+    const norm = normalizeUrl(raw);
+    if (!norm) { fetchStatus.className = 'fetch-status err'; clear(fetchStatus); fetchStatus.textContent = 'Invalid URL.'; return; }
+
+    fetchStatus.className = 'fetch-status loading';
+    clear(fetchStatus);
+    fetchStatus.appendChild(el('span', { class: 'spinner' }));
+    fetchStatus.appendChild(el('span', { text: 'Fetching metadata…' }));
+
+    const res = await metadata.fetch(norm);
+    clear(fetchStatus);
+
+    if (res.ok) {
+      if (res.title && !titleInput.value.trim()) titleInput.value = res.title;
+      if (res.description && !descInput.value.trim()) descInput.value = res.description;
+      if (res.favicon) draft.favicon = res.favicon;
+      if (res.title && !draft.tags.length) {
+        // Auto-suggest tag from domain
+        const d = domainOf(norm);
+        if (d) draft.tags.push(d.split('.')[0]);
+        renderTagTokens();
+      }
+      fetchStatus.className = 'fetch-status ok';
+      fetchStatus.appendChild(el('span', { text: res.fromCache ? '✓ Loaded from cache' : '✓ Metadata loaded' }));
+    } else {
+      fetchStatus.className = 'fetch-status err';
+      const msgs = {
+        offline: 'You are offline — enter details manually.',
+        blocked: 'Site blocks automatic fetching (CORS). Enter details manually.',
+        invalid: 'Invalid URL.',
+        parse: 'Could not read page metadata.'
+      };
+      fetchStatus.appendChild(el('span', { text: '⚠ ' + (msgs[res.error] || 'Fetch failed') + ' — please fill in manually.' }));
+    }
+  }
+
+  fetchBtn.onclick = doFetch;
+  urlInput.addEventListener('paste', () => setTimeout(doFetch, 30));
+  urlInput.addEventListener('change', () => { if (App.settings.autoFetch && urlInput.value.trim()) doFetch(); });
+
+  // Build modal
+  const modalEl = el('div', { class: 'modal lg' },
+    el('div', { class: 'modal-head' },
+      el('div', null,
+        el('div', { class: 'modal-title', text: isEdit ? 'Edit bookmark' : 'Add bookmark' }),
+        el('div', { class: 'modal-sub', text: isEdit ? 'Update the details below' : 'Paste a URL to auto-fetch metadata' })
+      ),
+      el('button', { class: 'icon-btn', text: '✕', onClick: () => modal.close(), 'aria-label': 'Close' })
+    ),
+    el('div', { class: 'modal-body' },
+      el('div', { class: 'field' },
+        el('label', { text: 'URL *' }),
+        urlRow,
+        fetchStatus
+      ),
+      el('div', { class: 'field' },
+        el('label', { text: 'Title' }),
+        titleInput
+      ),
+      el('div', { class: 'field' },
+        el('label', { text: 'Description *' }),
+        descInput,
+        el('div', { class: 'hint', text: 'A 2–5 line description helps you remember why you saved this.' })
+      ),
+      el('div', { class: 'field' },
+        el('label', { text: 'Category' }),
+        catSelect
+      ),
+      el('div', { class: 'field' },
+        el('label', { text: 'Tags' }),
+        tagEditor,
+        el('div', { class: 'hint', text: 'Press Enter or comma to add a tag.' })
+      ),
+      el('div', { class: 'row' },
+        el('label', { class: 'checkline' }, favCb, ' Favorite'),
+        el('label', { class: 'checkline' }, readCb, ' Mark as read')
+      )
+    ),
+    el('div', { class: 'modal-foot' },
+      el('div', { class: 'spacer' }),
+      el('button', { class: 'btn', text: 'Cancel', onClick: () => modal.close() }),
+      el('button', { class: 'btn primary', text: isEdit ? 'Save changes' : 'Add bookmark', onClick: save })
+    )
+  );
+
+  async function save() {
+    const rawUrl = urlInput.value.trim();
+    const norm = normalizeUrl(rawUrl);
+    if (!norm) { toasts.error('Please enter a valid URL'); return; }
+
+    let title = titleInput.value.trim();
+    const desc = descInput.value.trim();
+    if (!title) title = domainOf(norm);
+
+    if (!desc) {
+      const ok = await modal.confirm({
+        title: 'No description',
+        message: 'Every bookmark should have a description. Save anyway?',
+        confirmText: 'Save anyway'
+      });
+      if (!ok) return;
+    }
+
+    if (!isEdit && App.settings.autoDup) {
+      const dup = App.bookmarks.find(b => b.normalizedUrl === norm);
+      if (dup) {
+        const ok = await modal.confirm({
+          title: 'Duplicate detected',
+          message: `A bookmark with this URL already exists ("${dup.title || dup.domain}"). Add anyway?`,
+          confirmText: 'Add anyway'
+        });
+        if (!ok) return;
+      }
+    }
+
+    const data = {
+      url: norm,
+      normalizedUrl: norm,
+      domain: domainOf(norm),
+      title,
+      description: desc,
+      favicon: draft.favicon || '',
+      categoryId: catSelect.value,
+      tags: draft.tags.slice(),
+      favorite: favCb.checked,
+      read: readCb.checked,
+      archived: isEdit ? existing.archived : false
+    };
+
+    try {
+      if (isEdit) {
+        Object.assign(existing, data);
+        existing.updatedAt = Date.now();
+        existing._s = makeBlob(existing);
+        await storage.put(S_BM, existing);
+        toasts.success('Bookmark updated');
+      } else {
+        const now = Date.now();
+        const b = {
+          id: uid(),
+          ...data,
+          openCount: 0,
+          lastOpenedAt: null,
+          createdAt: now,
+          updatedAt: now
+        };
+        b._s = makeBlob(b);
+        App.bookmarks.push(b);
+        await storage.put(S_BM, b);
+        toasts.success('Bookmark added');
+      }
+      modal.close();
+      renderAll();
+    } catch (e) {
+      toasts.error('Could not save: ' + e.message);
+    }
+  }
+
+  modal.open(modalEl);
+}
+
+/* ---------- 14. Bulk actions ---------- */
+function toggleSelect(id) {
+  if (App.selected.has(id)) App.selected.delete(id);
+  else App.selected.add(id);
+  const card = $(`.card[data-id="${CSS.escape(id)}"]`);
+  if (card) card.classList.toggle('is-selected', App.selected.has(id));
+  renderBulkBar();
+}
+
+function renderBulkBar() {
+  const bar = $('#bulkBar');
+  const n = App.selected.size;
+  if (n === 0) {
+    bar.classList.remove('show');
+    clear(bar);
+    return;
+  }
+  bar.classList.add('show');
+  clear(bar);
+  bar.appendChild(el('span', { class: 'bulk-count', text: n + ' selected' }));
+
+  const acts = [
+    ['Archive', () => bulkAction('archive')],
+    ['Unarchive', () => bulkAction('unarchive')],
+    ['Read', () => bulkAction('read')],
+    ['Unread', () => bulkAction('unread')],
+    ['Favorite', () => bulkAction('fav')],
+    ['Unfavorite', () => bulkAction('unfav')],
+    ['Add tag', () => bulkTag('add')],
+    ['Remove tag', () => bulkTag('remove')],
+    ['Move to…', () => bulkMoveCategory()],
+    ['Export', () => bulkExport()],
+    ['Delete', () => bulkDelete(), 'danger']
+  ];
+  for (const [label, fn, cls] of acts) {
+    bar.appendChild(el('button', { class: `btn sm${cls ? ' ' + cls : ''}`, text: label, onClick: fn }));
+  }
+  bar.appendChild(el('button', { class: 'btn sm', text: '✕ Clear', onClick: () => { App.selected.clear(); renderAll(); } }));
+}
+
+async function bulkAction(kind) {
+  const ids = Array.from(App.selected);
+  const patch = {};
+  if (kind === 'archive') patch.archived = true;
+  else if (kind === 'unarchive') patch.archived = false;
+  else if (kind === 'read') patch.read = true;
+  else if (kind === 'unread') patch.read = false;
+  else if (kind === 'fav') patch.favorite = true;
+  else if (kind === 'unfav') patch.favorite = false;
+
+  const updated = [];
+  for (const id of ids) {
+    const b = App.bookmarks.find(x => x.id === id);
+    if (!b) continue;
+    Object.assign(b, patch);
+    b.updatedAt = Date.now();
+    b._s = makeBlob(b);
+    updated.push(b);
+  }
+  await storage.bulkPut(S_BM, updated);
+  toasts.success(`${ids.length} bookmark${ids.length === 1 ? '' : 's'} updated`);
+  App.selected.clear();
+  renderAll();
+}
+
+async function bulkDelete() {
+  const n = App.selected.size;
+  if (App.settings.confirmDelete) {
+    const ok = await modal.confirm({
+      title: 'Delete bookmarks?',
+      message: `${n} bookmark${n === 1 ? '' : 's'} will be permanently removed.`,
+      confirmText: 'Delete', danger: true
+    });
+    if (!ok) return;
+  }
+  const ids = Array.from(App.selected);
+  App.bookmarks = App.bookmarks.filter(b => !App.selected.has(b.id));
+  await storage.bulkDelete(S_BM, ids);
+  App.selected.clear();
+  toasts.success(`${ids.length} deleted`);
+  renderAll();
+}
+
+async function bulkTag(mode) {
+  const tag = prompt(mode === 'add' ? 'Tag to add:' : 'Tag to remove:');
+  if (!tag) return;
+  const t = tag.trim().slice(0, 40);
+  if (!t) return;
+  const updated = [];
+  for (const id of App.selected) {
+    const b = App.bookmarks.find(x => x.id === id);
+    if (!b) continue;
+    if (mode === 'add') {
+      if (!b.tags.includes(t) && b.tags.length < 30) b.tags.push(t);
+    } else {
+      b.tags = b.tags.filter(x => x !== t);
+    }
+    b.updatedAt = Date.now();
+    b._s = makeBlob(b);
+    updated.push(b);
+  }
+  await storage.bulkPut(S_BM, updated);
+  toasts.success('Tags updated');
+  renderAll();
+}
+
+async function bulkMoveCategory() {
+  const catId = await pickCategory('Move to category');
+  if (!catId) return;
+  const updated = [];
+  for (const id of App.selected) {
+    const b = App.bookmarks.find(x => x.id === id);
+    if (!b) continue;
+    b.categoryId = catId;
+    b.updatedAt = Date.now();
+    updated.push(b);
+  }
+  await storage.bulkPut(S_BM, updated);
+  toasts.success('Category updated');
+  App.selected.clear();
+  renderAll();
+}
+
+function pickCategory(title) {
+  return new Promise(res => {
+    const select = el('select', { class: 'input' });
+    select.appendChild(el('option', { value: '', text: 'Choose…' }));
+    App.categories.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+      select.appendChild(el('option', { value: c.id, text: c.name }));
+    });
+    const m = el('div', { class: 'modal sm' },
+      el('div', { class: 'modal-head' }, el('div', { class: 'modal-title', text: title })),
+      el('div', { class: 'modal-body' }, el('div', { class: 'field' }, el('label', { text: 'Category' }), select)),
+      el('div', { class: 'modal-foot' },
+        el('button', { class: 'btn', text: 'Cancel', onClick: () => { modal.close(); res(null); } }),
+        el('button', { class: 'btn primary', text: 'Move', onClick: () => { const v = select.value; modal.close(); res(v || null); } })
+      )
+    );
+    modal.open(m);
+  });
+}
+
+/* ---------- 15. Category manager ---------- */
+function openCategoryManager() {
+  const body = el('div', { class: 'modal-body' });
+  function render() {
+    clear(body);
+    const sorted = App.categories.slice().sort((a, b) => a.name.localeCompare(b.name));
+    for (const c of sorted) {
+      const nameInput = el('input', { class: 'cat-name-input', type: 'text', value: c.name, maxlength: 60 });
+      const colorInput = el('input', { type: 'color', value: c.color });
+      const count = App.bookmarks.filter(b => b.categoryId === c.id).length;
+
+      const row = el('div', { class: 'cat-row' },
+        colorInput,
+        nameInput,
+        el('span', { class: 'cat-count', text: count + ' items', style: { fontSize: '11px', color: 'var(--text-3)', whiteSpace: 'nowrap' } }),
+        el('button', { class: 'cat-del', text: '🗑', title: 'Delete category', onClick: () => deleteCategory(c) })
+      );
+
+      nameInput.onblur = async () => {
+        const v = nameInput.value.trim();
+        if (!v || v === c.name) { nameInput.value = c.name; return; }
+        try {
+          c.name = v;
+          await storage.put(S_CAT, c);
+          buildCatMap();
+          App.bookmarks.forEach(b => { if (b.categoryId === c.id) b._s = makeBlob(b); });
+          toasts.success('Category renamed');
+          renderAll();
+        } catch (e) {
+          toasts.error(e.message);
+          nameInput.value = c.name;
+        }
+      };
+      colorInput.oninput = async () => {
+        c.color = colorInput.value;
+        await storage.put(S_CAT, c);
+        buildCatMap();
+        renderAll();
+      };
+      body.appendChild(row);
+    }
+  }
+  render();
+
+  const newName = el('input', { class: 'input', placeholder: 'New category name', maxlength: 60 });
+  const newColor = el('input', { type: 'color', value: '#6d8cff', style: { width: '40px', height: '40px', padding: 0, border: 'none', borderRadius: '10px', cursor: 'pointer' } });
+  const addBtn = el('button', { class: 'btn primary', text: 'Add', onClick: async () => {
+    const n = newName.value.trim();
+    if (!n) return;
+    try {
+      const cat = { id: uid(), name: n, color: newColor.value, createdAt: Date.now() };
+      App.categories.push(cat);
+      await storage.put(S_CAT, cat);
+      buildCatMap();
+      newName.value = '';
+      toasts.success('Category added');
+      render();
+      renderAll();
+    } catch (e) { toasts.error(e.message); }
+  }});
+
+  const m = el('div', { class: 'modal' },
+    el('div', { class: 'modal-head' },
+      el('div', null,
+        el('div', { class: 'modal-title', text: 'Manage categories' }),
+        el('div', { class: 'modal-sub', text: 'Rename, recolor, add or delete categories' })
+      ),
+      el('button', { class: 'icon-btn', text: '✕', onClick: () => modal.close() })
+    ),
+    body,
+    el('div', { style: { padding: '0 20px 12px' } },
+      el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } }, newColor, newName, addBtn)
+    ),
+    el('div', { class: 'modal-foot' },
+      el('button', { class: 'btn primary', text: 'Done', onClick: () => modal.close() })
+    )
+  );
+  modal.open(m);
+
+  async function deleteCategory(c) {
+    const count = App.bookmarks.filter(b => b.categoryId === c.id).length;
+    let moveTo = UNCAT;
+    if (count > 0) {
+      const ok = await modal.confirm({
+        title: 'Delete category?',
+        message: `"${c.name}" has ${count} bookmark${count === 1 ? '' : 's'}. They will be moved to Uncategorized.`,
+        confirmText: 'Delete', danger: true
+      });
+      if (!ok) return;
+    } else {
+      const ok = await modal.confirm({ title: 'Delete category?', message: `Delete "${c.name}"?`, confirmText: 'Delete', danger: true });
+      if (!ok) return;
+    }
+    if (count > 0) {
+      for (const b of App.bookmarks) {
+        if (b.categoryId === c.id) { b.categoryId = moveTo; b._s = makeBlob(b); }
+      }
+      await storage.bulkPut(S_BM, App.bookmarks.filter(b => b.categoryId === moveTo));
+    }
+    App.categories = App.categories.filter(x => x.id !== c.id);
+    await storage.remove(S_CAT, c.id);
+    buildCatMap();
+    toasts.success('Category deleted');
+    render();
+    renderAll();
+  }
+}
+
+/* ---------- 16. Settings ---------- */
+function openSettings() {
+  const accentColors = ['#6d8cff', '#a06bff', '#3ddc97', '#ffb84d', '#ff6b9d', '#4dd0e1', '#ff8a65', '#9ccc65'];
+
+  const accentRow = el('div', { class: 'accent-swatches' });
+  for (const col of accentColors) {
+    const sw = el('button', {
+      class: `accent-sw${App.settings.accent === col ? ' on' : ''}`,
+      style: { background: col },
+      onClick: () => {
+        App.settings.accent = col;
+        document.documentElement.style.setProperty('--accent', col);
+        localStorage.setItem('marklet-accent', col);
+        $$('.accent-sw', accentRow).forEach(x => x.classList.remove('on'));
+        sw.classList.add('on');
+      }
+    });
+    accentRow.appendChild(sw);
+  }
+
+  const confirmCb = el('input', { type: 'checkbox', checked: App.settings.confirmDelete });
+  confirmCb.onchange = () => { App.settings.confirmDelete = confirmCb.checked; saveSettings(); };
+
+  const fetchCb = el('input', { type: 'checkbox', checked: App.settings.autoFetch });
+  fetchCb.onchange = () => { App.settings.autoFetch = fetchCb.checked; saveSettings(); };
+
+  const dupCb = el('input', { type: 'checkbox', checked: App.settings.autoDup });
+  dupCb.onchange = () => { App.settings.autoDup = dupCb.checked; saveSettings(); };
+
+  const m = el('div', { class: 'modal' },
+    el('div', { class: 'modal-head' },
+      el('div', null,
+        el('div', { class: 'modal-title', text: 'Settings' }),
+        el('div', { class: 'modal-sub', text: 'Customize your experience' })
+      ),
+      el('button', { class: 'icon-btn', text: '✕', onClick: () => modal.close() })
+    ),
+    el('div', { class: 'modal-body' },
+      el('div', { class: 'settings-section' },
+        el('h4', { text: 'Appearance' }),
+        el('div', { class: 'setting-row' },
+          el('div', null, el('div', { class: 'sr-label', text: 'Accent color' })),
+          accentRow
+        )
+      ),
+      el('div', { class: 'settings-section' },
+        el('h4', { text: 'Behaviour' }),
+        el('div', { class: 'setting-row' },
+          el('div', null,
+            el('div', { class: 'sr-label', text: 'Confirm before deletion' }),
+            el('div', { class: 'sr-desc', text: 'Ask before removing bookmarks' })
+          ),
+          el('label', { class: 'checkline' }, confirmCb)
+        ),
+        el('div', { class: 'setting-row' },
+          el('div', null,
+            el('div', { class: 'sr-label', text: 'Auto-fetch metadata' }),
+            el('div', { class: 'sr-desc', text: 'Try to fetch title/description on paste' })
+          ),
+          el('label', { class: 'checkline' }, fetchCb)
+        ),
+        el('div', { class: 'setting-row' },
+          el('div', null,
+            el('div', { class: 'sr-label', text: 'Detect duplicates' }),
+            el('div', { class: 'sr-desc', text: 'Warn when adding an existing URL' })
+          ),
+          el('label', { class: 'checkline' }, dupCb)
+        )
+      ),
+      el('div', { class: 'settings-section' },
+        el('h4', { text: 'Danger zone' }),
+        el('div', { class: 'setting-row' },
+          el('div', null,
+            el('div', { class: 'sr-label', text: 'Clear all data' }),
+            el('div', { class: 'sr-desc', text: 'Permanently delete all bookmarks and categories' })
+          ),
+          el('button', { class: 'btn danger sm', text: 'Clear all', onClick: clearAllData })
+        )
+      )
+    ),
+    el('div', { class: 'modal-foot' }, el('button', { class: 'btn primary', text: 'Done', onClick: () => modal.close() }))
+  );
+  modal.open(m);
+
+  async function clearAllData() {
+    const ok = await modal.confirm({
+      title: 'Clear all data?',
+      message: 'This will permanently delete ALL bookmarks, categories, and settings. This cannot be undone.',
+      confirmText: 'Clear everything', danger: true
+    });
+    if (!ok) return;
+    await storage.clear(S_BM);
+    await storage.clear(S_CAT);
+    await storage.clear(S_KV);
+    localStorage.removeItem('marklet-settings');
+    location.reload();
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem('marklet-settings', JSON.stringify(App.settings));
+}
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem('marklet-settings');
+    if (raw) Object.assign(App.settings, JSON.parse(raw));
+    const accent = localStorage.getItem('marklet-accent');
+    if (accent) App.settings.accent = accent;
+  } catch {}
+  document.documentElement.style.setProperty('--accent', App.settings.accent);
+}
+
+/* ---------- 17. Import / Export ---------- */
+function openDataPanel() {
+  const m = el('div', { class: 'modal' },
+    el('div', { class: 'modal-head' },
+      el('div', null,
+        el('div', { class: 'modal-title', text: 'Import / Export' }),
+        el('div', { class: 'modal-sub', text: 'Backup or restore your bookmarks' })
+      ),
+      el('button', { class: 'icon-btn', text: '✕', onClick: () => modal.close() })
+    ),
+    el('div', { class: 'modal-body' },
+      el('div', { class: 'settings-section' },
+        el('h4', { text: 'Export' }),
+        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+          el('button', { class: 'btn', text: '⬇ Export JSON', onClick: () => exportData('json', false) }),
+          el('button', { class: 'btn', text: '⬇ Export CSV', onClick: () => exportData('csv', false) }),
+          el('button', { class: 'btn', text: '⬇ Export filtered (JSON)', onClick: () => exportData('json', true) })
+        )
+      ),
+      el('div', { class: 'settings-section' },
+        el('h4', { text: 'Import' }),
+        el('div', { class: 'hint', text: 'JSON files from Marklet or CSV files with matching columns are supported.' }),
+        el('div', { style: { marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+          el('label', { class: 'btn', style: { cursor: 'pointer' } },
+            '⬆ Import JSON',
+            el('input', { type: 'file', accept: '.json,application/json', hidden: true, onChange: e => handleImport(e, 'json') })
+          ),
+          el('label', { class: 'btn', style: { cursor: 'pointer' } },
+            '⬆ Import CSV',
+            el('input', { type: 'file', accept: '.csv,text/csv', hidden: true, onChange: e => handleImport(e, 'csv') })
+          )
+        )
+      )
+    ),
+    el('div', { class: 'modal-foot' }, el('button', { class: 'btn primary', text: 'Done', onClick: () => modal.close() }))
+  );
+  modal.open(m);
+}
+
+function exportData(format, filteredOnly) {
+  const list = filteredOnly ? App.filtered : App.bookmarks;
+  if (!list.length) { toasts.warn('Nothing to export'); return; }
+  const date = new Date().toISOString().slice(0, 10);
+  if (format === 'json') {
+    const payload = {
+      app: 'Marklet', version: 1, exportedAt: new Date().toISOString(),
+      count: list.length,
+      categories: App.categories.map(c => ({ id: c.id, name: c.name, color: c.color })),
+      bookmarks: list.map(b => ({
+        id: b.id, url: b.url, normalizedUrl: b.normalizedUrl, domain: b.domain,
+        title: b.title, description: b.description, favicon: b.favicon,
+        category: getCat(b.categoryId).name, categoryId: b.categoryId,
+        tags: b.tags, favorite: b.favorite, read: b.read, archived: b.archived,
+        openCount: b.openCount || 0, lastOpenedAt: b.lastOpenedAt,
+        createdAt: b.createdAt, updatedAt: b.updatedAt
+      }))
+    };
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `marklet-${date}.json`);
+  } else {
+    const headers = ['id','url','title','description','domain','category','tags','favorite','read','archived','createdAt','updatedAt'];
+    const rows = [headers.join(',')];
+    const esc = v => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    for (const b of list) {
+      rows.push([
+        b.id, b.url, b.title, b.description, b.domain,
+        getCat(b.categoryId).name, b.tags.join('|'),
+        b.favorite ? '1' : '0', b.read ? '1' : '0', b.archived ? '1' : '0',
+        b.createdAt, b.updatedAt
+      ].map(esc).join(','));
+    }
+    downloadBlob(new Blob([rows.join('\n')], { type: 'text/csv' }), `marklet-${date}.csv`);
+  }
+  toasts.success(`Exported ${list.length} bookmark${list.length === 1 ? '' : 's'}`);
+}
+
+function bulkExport() {
+  const list = App.bookmarks.filter(b => App.selected.has(b.id));
+  if (!list.length) return;
+  const payload = { app: 'Marklet', bookmarks: list };
+  downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `marklet-selected-${Date.now()}.json`);
+  toasts.success(`Exported ${list.length} selected`);
+}
+
+async function handleImport(e, format) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    let items;
+    if (format === 'json') items = parseJSONImport(text);
+    else items = parseCSVImport(text);
+    if (!items.length) { toasts.warn('No bookmarks found in file'); return; }
+    await confirmImport(items);
+  } catch (err) {
+    toasts.error('Import failed: ' + err.message);
+  }
+}
+
+function parseJSONImport(text) {
+  const data = JSON.parse(text);
+  const arr = Array.isArray(data) ? data : (data.bookmarks || []);
+  if (!Array.isArray(arr)) throw new Error('Invalid JSON structure');
+  return arr.map(normalizeImportItem).filter(Boolean);
+}
+
+function parseCSVImport(text) {
+  const lines = parseCSVLines(text);
+  if (lines.length < 2) throw new Error('CSV is empty');
+  const headers = lines[0].map(h => h.trim().toLowerCase());
+  const idx = name => headers.indexOf(name);
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i];
+    if (!row.length || !row[idx('url')]) continue;
+    const get = name => { const j = idx(name); return j >= 0 ? (row[j] || '').trim() : ''; };
+    out.push(normalizeImportItem({
+      id: get('id'),
+      url: get('url'),
+      title: get('title'),
+      description: get('description'),
+      domain: get('domain'),
+      category: get('category'),
+      tags: (get('tags') || '').split('|').map(t => t.trim()).filter(Boolean),
+      favorite: get('favorite') === '1' || get('favorite') === 'true',
+      read: get('read') === '1' || get('read') === 'true',
+      archived: get('archived') === '1' || get('archived') === 'true',
+      createdAt: parseInt(get('createdat')) || Date.now(),
+      updatedAt: parseInt(get('updatedat')) || Date.now()
+    }));
+  }
+  return out.filter(Boolean);
+}
+
+function parseCSVLines(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field);
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = []; field = '';
+      } else field += c;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function normalizeImportItem(raw) {
+  if (!raw || !raw.url) return null;
+  const url = normalizeUrl(raw.url);
+  if (!url) return null;
+  const title = String(raw.title || '').slice(0, 500) || domainOf(url);
+  const description = String(raw.description || '').slice(0, 3000);
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.map(t => String(t).trim().slice(0, 40)).filter(Boolean).slice(0, 30)
+    : [];
+  return {
+    id: raw.id && typeof raw.id === 'string' ? raw.id : uid(),
+    url, normalizedUrl: url, domain: domainOf(url),
+    title, description,
+    favicon: typeof raw.favicon === 'string' ? raw.favicon : '',
+    categoryName: typeof raw.category === 'string' ? raw.category : '',
+    tags,
+    favorite: !!raw.favorite, read: !!raw.read, archived: !!raw.archived,
+    openCount: Number(raw.openCount) || 0,
+    lastOpenedAt: raw.lastOpenedAt || null,
+    createdAt: Number(raw.createdAt) || Date.now(),
+    updatedAt: Number(raw.updatedAt) || Date.now()
+  };
+}
+
+async function confirmImport(items) {
+  // Detect duplicates
+  const existingByUrl = new Map();
+  for (const b of App.bookmarks) existingByUrl.set(b.normalizedUrl, b);
+  const newItems = [], dupItems = [];
+  const seenInBatch = new Set();
+  for (const item of items) {
+    if (seenInBatch.has(item.normalizedUrl) || existingByUrl.has(item.normalizedUrl)) dupItems.push(item);
+    else { newItems.push(item); seenInBatch.add(item.normalizedUrl); }
+  }
+
+  return new Promise(res => {
+    const dupChoice = el('select', { class: 'input' },
+      el('option', { value: 'skip', text: `Skip duplicates (${dupItems.length})` }),
+      el('option', { value: 'replace', text: 'Replace existing duplicates' }),
+      el('option', { value: 'keep', text: 'Keep both (add anyway)' })
+    );
+    dupChoice.value = dupItems.length ? 'skip' : 'keep';
+
+    const m = el('div', { class: 'modal sm' },
+      el('div', { class: 'modal-head' },
+        el('div', null,
+          el('div', { class: 'modal-title', text: 'Import summary' }),
+          el('div', { class: 'modal-sub', text: `${items.length} items found` })
+        )
+      ),
+      el('div', { class: 'modal-body' },
+        el('p', { text: `${newItems.length} new bookmark${newItems.length === 1 ? '' : 's'}`, style: { color: 'var(--ok)', marginBottom: '6px' } }),
+        dupItems.length ? el('p', { text: `${dupItems.length} duplicate${dupItems.length === 1 ? '' : 's'} detected`, style: { color: 'var(--warn)', marginBottom: '14px' } }) : null,
+        dupItems.length ? el('div', { class: 'field' }, el('label', { text: 'How to handle duplicates?' }), dupChoice) : null
+      ),
+      el('div', { class: 'modal-foot' },
+        el('button', { class: 'btn', text: 'Cancel', onClick: () => { modal.close(); res(); } }),
+        el('button', { class: 'btn primary', text: 'Import', onClick: async () => {
+          modal.close();
+          await performImport(newItems, dupItems, dupChoice.value);
+          res();
+        }})
+      )
+    );
+    modal.open(m);
+  });
+}
+
+async function performImport(newItems, dupItems, dupMode) {
+  // Create missing categories
+  const catByName = new Map(App.categories.map(c => [c.name.toLowerCase(), c]));
+  const needed = new Set();
+  for (const it of [...newItems, ...dupItems]) if (it.categoryName) needed.add(it.categoryName);
+  for (const name of needed) {
+    const key = name.toLowerCase();
+    if (!catByName.has(key) && name.toLowerCase() !== 'uncategorized') {
+      const cat = { id: uid(), name, color: colorFromString(name), createdAt: Date.now() };
+      App.categories.push(cat);
+      catByName.set(key, cat);
+      await storage.put(S_CAT, cat);
+    }
+  }
+  buildCatMap();
+
+  const toAdd = [];
+  const now = Date.now();
+
+  const resolveCat = name => {
+    if (!name) return UNCAT;
+    if (name.toLowerCase() === 'uncategorized') return UNCAT;
+    const c = catByName.get(name.toLowerCase());
+    return c ? c.id : UNCAT;
+  };
+
+  for (const it of newItems) {
+    const b = {
+      id: it.id, url: it.url, normalizedUrl: it.normalizedUrl, domain: it.domain,
+      title: it.title, description: it.description, favicon: it.favicon,
+      categoryId: resolveCat(it.categoryName), tags: it.tags,
+      favorite: it.favorite, read: it.read, archived: it.archived,
+      openCount: it.openCount, lastOpenedAt: it.lastOpenedAt,
+      createdAt: it.createdAt || now, updatedAt: it.updatedAt || now
+    };
+    b._s = makeBlob(b);
+    toAdd.push(b);
+  }
+
+  if (dupMode === 'replace') {
+    for (const it of dupItems) {
+      const existing = App.bookmarks.find(b => b.normalizedUrl === it.normalizedUrl);
+      if (existing) {
+        Object.assign(existing, {
+          title: it.title || existing.title,
+          description: it.description || existing.description,
+          categoryId: resolveCat(it.categoryName) || existing.categoryId,
+          tags: it.tags.length ? it.tags : existing.tags,
+          favorite: it.favorite, read: it.read, archived: it.archived,
+          updatedAt: now
+        });
+        existing._s = makeBlob(existing);
+        toAdd.push(existing);
+      }
+    }
+  } else if (dupMode === 'keep') {
+    for (const it of dupItems) {
+      const b = {
+        id: uid(), url: it.url, normalizedUrl: it.normalizedUrl, domain: it.domain,
+        title: it.title, description: it.description, favicon: it.favicon,
+        categoryId: resolveCat(it.categoryName), tags: it.tags,
+        favorite: it.favorite, read: it.read, archived: it.archived,
+        openCount: 0, lastOpenedAt: null,
+        createdAt: it.createdAt || now, updatedAt: now
+      };
+      b._s = makeBlob(b);
+      toAdd.push(b);
+    }
+  }
+
+  if (!toAdd.length) { toasts.info('Nothing to import'); return; }
+
+  // Merge into memory
+  const existingIds = new Set(App.bookmarks.map(b => b.id));
+  for (const b of toAdd) if (!existingIds.has(b.id)) App.bookmarks.push(b);
+
+  await storage.bulkPut(S_BM, toAdd);
+  toasts.success(`Imported ${toAdd.length} bookmark${toAdd.length === 1 ? '' : 's'}`);
+  renderAll();
+}
+
+/* ---------- 18. Shortcuts panel ---------- */
+function openShortcuts() {
+  const rows = [
+    ['/', 'Focus search'],
+    ['Ctrl / ⌘ + K', 'Focus search'],
+    ['Ctrl / ⌘ + N', 'Add bookmark'],
+    ['Esc', 'Close modal / clear selection'],
+    ['Ctrl / ⌘ + A', 'Select all visible'],
+    ['Delete', 'Delete selected'],
+    ['E', 'Edit selected (1 only)'],
+    ['F', 'Toggle favorite on selected'],
+    ['R', 'Toggle read on selected']
+  ];
+  const grid = el('div', { class: 'kbd-grid' });
+  for (const [k, d] of rows) {
+    grid.appendChild(el('div', { class: 'k-desc', text: d }));
+    grid.appendChild(el('div', null, el('kbd', { text: k })));
+  }
+  const m = el('div', { class: 'modal sm' },
+    el('div', { class: 'modal-head' },
+      el('div', { class: 'modal-title', text: 'Keyboard shortcuts' }),
+      el('button', { class: 'icon-btn', text: '✕', onClick: () => modal.close() })
+    ),
+    el('div', { class: 'modal-body' }, grid),
+    el('div', { class: 'modal-foot' }, el('button', { class: 'btn primary', text: 'Got it', onClick: () => modal.close() }))
+  );
+  modal.open(m);
+}
+
+/* ---------- 19. Filter panel ---------- */
+function buildFilterPanel() {
+  const panel = $('#filterPanel');
+  clear(panel);
+
+  // Categories section
+  panel.appendChild(el('h4', { text: 'Categories' }));
+  const catChoices = el('div', { class: 'filter-choices' });
+  App.categories.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+    const on = App.filters.categories.has(c.id);
+    const b = el('button', { class: `fc${on ? ' on' : ''}` },
+      el('span', { class: 'fc-dot', style: { background: c.color } }),
+      el('span', { text: c.name })
+    );
+    b.onclick = () => { toggleCategoryFilter(c.id); buildFilterPanel(); };
+    catChoices.appendChild(b);
+  });
+  panel.appendChild(el('div', { class: 'fp-section' }, catChoices));
+
+  // Read status
+  panel.appendChild(el('h4', { text: 'Status' }));
+  const statusChoices = el('div', { class: 'filter-choices' });
+  for (const [val, label] of [['read', 'Read'], ['unread', 'Unread']]) {
+    const on = App.filters.read === val;
+    const b = el('button', { class: `fc${on ? ' on' : ''}`, text: label });
+    b.onclick = () => { App.filters.read = on ? null : val; renderAll(); buildFilterPanel(); };
+    statusChoices.appendChild(b);
+  }
+  panel.appendChild(el('div', { class: 'fp-section' }, statusChoices));
+
+  // Reset
+  panel.appendChild(el('div', { style: { marginTop: '12px', display: 'flex', gap: '8px' } },
+    el('button', { class: 'btn sm', text: 'Reset filters', onClick: () => { resetFilters(); buildFilterPanel(); } })
+  ));
+
+  // Update filter count badge
+  const n = App.filters.categories.size + App.filters.tags.size + (App.filters.read ? 1 : 0) + (App.filters.view !== 'all' ? 1 : 0);
+  $('#filterCount').textContent = n > 0 ? ' (' + n + ')' : '';
+}
+
+/* ---------- 20. Event wiring ---------- */
+function wireEvents() {
+  // Sidebar toggle (mobile)
+  $('#menuBtn').onclick = () => { $('#sidebar').classList.add('open'); $('#scrim').classList.add('show'); };
+  $('#sidebarClose').onclick = () => { $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); };
+  $('#scrim').onclick = () => { $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); };
+
+  // Navigation
+  $$('#nav .nav-item').forEach(btn => {
+    btn.onclick = () => {
+      App.filters.view = btn.dataset.view;
+      renderAll();
+      if (window.innerWidth <= 900) { $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); }
+    };
+  });
+
+  // Search
+  const searchInput = $('#searchInput');
+  const doSearch = debounce(() => {
+    App.search = searchInput.value;
+    App._renderedCount = 100;
+    renderAll();
+  }, 150);
+  searchInput.addEventListener('input', () => {
+    $('#clearSearch').hidden = !searchInput.value;
+    doSearch();
+  });
+  $('#clearSearch').onclick = () => {
+    searchInput.value = ''; App.search = ''; $('#clearSearch').hidden = true;
+    renderAll();
+  };
+
+  // Add button
+  $('#addBtn').onclick = openAddModal;
+
+  // Sort select
+  const sortSel = $('#sortSelect');
+  SORT_OPTIONS.forEach(o => sortSel.appendChild(el('option', { value: o.id, text: o.label, selected: App.settings.sort === o.id })));
+  sortSel.onchange = () => { App.settings.sort = sortSel.value; saveSettings(); renderAll(); };
+
+  // View toggle
+  $$('.view-toggle button').forEach(b => {
+    b.onclick = () => {
+      $$('.view-toggle button').forEach(x => x.classList.remove('is-active'));
+      b.classList.add('is-active');
+      App.settings.view = b.dataset.viewMode;
+      saveSettings();
+      renderAll();
+    };
+  });
+
+  // Filter panel
+  $('#filterBtn').onclick = (e) => {
+    e.stopPropagation();
+    const p = $('#filterPanel');
+    p.classList.toggle('show');
+    if (p.classList.contains('show')) buildFilterPanel();
+  };
+  document.addEventListener('click', e => {
+    const p = $('#filterPanel');
+    if (p.classList.contains('show') && !p.contains(e.target) && e.target !== $('#filterBtn') && !$('#filterBtn').contains(e.target)) {
+      p.classList.remove('show');
+    }
+  });
+
+  // Data button
+  $('#dataBtn').onclick = openDataPanel;
+
+  // Settings & shortcuts
+  $('#settingsBtn').onclick = openSettings;
+  $('#shortcutsBtn').onclick = openShortcuts;
+  $('#manageCatsBtn').onclick = openCategoryManager;
+
+  // Bulk bar
+  $('#bulkBar').addEventListener('click', e => e.stopPropagation());
+}
+
+/* ---------- 21. Keyboard shortcuts ---------- */
+function wireKeyboard() {
+  document.addEventListener('keydown', e => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    const inField = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+
+    // Escape
+    if (e.key === 'Escape') {
+      if (modal.current) { modal.close(); return; }
+      if (App.selected.size) { App.selected.clear(); renderAll(); return; }
+      if ($('#filterPanel').classList.contains('show')) { $('#filterPanel').classList.remove('show'); return; }
+      if (document.activeElement === $('#searchInput')) { $('#searchInput').blur(); return; }
+      return;
+    }
+
+    // / or Ctrl+K = search
+    if ((e.key === '/' && !inField) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+      e.preventDefault();
+      $('#searchInput').focus();
+      $('#searchInput').select();
+      return;
+    }
+
+    // Ctrl+N = add
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      openAddModal();
+      return;
+    }
+
+    if (inField || modal.current) return;
+
+    // Ctrl+A = select all visible
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      App.filtered.forEach(b => App.selected.add(b.id));
+      renderAll();
+      return;
+    }
+
+    // Delete
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (App.selected.size) { e.preventDefault(); bulkDelete(); }
+      return;
+    }
+
+    // E = edit (single)
+    if (e.key.toLowerCase() === 'e' && App.selected.size === 1) {
+      openEditModal(Array.from(App.selected)[0]);
+      return;
+    }
+
+    // F = favorite
+    if (e.key.toLowerCase() === 'f' && App.selected.size) {
+      bulkAction('fav');
+      return;
+    }
+
+    // R = read
+    if (e.key.toLowerCase() === 'r' && App.selected.size) {
+      bulkAction('read');
+      return;
+    }
+  });
+}
+
+/* ---------- 22. Bootstrap ---------- */
+async function boot() {
+  try {
+    await storage.open();
+  } catch (e) {
+    document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;color:#fff"><h2>Database error</h2><p>' + e.message + '</p></div>';
+    return;
+  }
+
+  loadSettings();
+
+  // Load categories
+  App.categories = await storage.getAll(S_CAT);
+  if (!App.categories.length) {
+    const now = Date.now();
+    App.categories = DEFAULT_CATEGORIES.map((c, i) => ({ id: uid(), name: c.name, color: c.color, createdAt: now + i }));
+    await storage.bulkPut(S_CAT, App.categories);
+  }
+  buildCatMap();
+
+  // Load bookmarks
+  App.bookmarks = await storage.getAll(S_BM);
+  for (const b of App.bookmarks) {
+    if (!Array.isArray(b.tags)) b.tags = [];
+    b._s = makeBlob(b);
+  }
+
+  // Load favicon cache
+  try {
+    const kv = await storage.getAll(S_KV);
+    for (const row of kv) {
+      if (row.key && row.key.startsWith('favicon:')) App.favicons.set(row.key.slice(8), row.value);
+      if (row.key && row.key.startsWith('meta:')) App.metaCache.set(row.key.slice(5), row.value);
+    }
+  } catch {}
+
+  // Ensure the settings view matches the toggle
+  $$('.view-toggle button').forEach(b => b.classList.toggle('is-active', b.dataset.viewMode === App.settings.view));
+
+  wireEvents();
+  wireKeyboard();
+
+  App._renderedCount = 100;
+  renderAll();
+  App._loaded = true;
+
+  // Online/offline notifications
+  window.addEventListener('online', () => toasts.info('You are back online'));
+  window.addEventListener('offline', () => toasts.warn('You are offline — metadata fetching disabled'));
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>
